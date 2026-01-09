@@ -1,4 +1,4 @@
-.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test
+.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-security
 .DEFAULT_GOAL := help
 
 help:
@@ -8,6 +8,7 @@ help:
 	@echo "    code-check         - Format and lint code"
 	@echo "    dev                - Start application with databases"
 	@echo "    test               - Run tests"
+	@echo "    test-security      - Start docker containers and run security tests agains the api"
 	@echo ""
 	@echo "  🐳 Docker:"
 	@echo "    docker-up          - Start all services"
@@ -54,3 +55,29 @@ db-remove:
 
 test:
 	gotestsum --format=short-verbose
+
+test-security:
+	@[ -f .env ] || (echo ".env not found"; exit 1)
+	@echo "🐳 Starting containers..."
+	docker compose --env-file .env up -d --build
+
+	@echo "⏳ Waiting for containers to be healthy..."
+	@sh -c '\
+		set -e; \
+		for i in $$(seq 1 60); do \
+			unhealthy=$$(docker inspect --format="{{.State.Health.Status}}" $$(docker compose ps -q) 2>/dev/null | grep -v healthy || true); \
+			if [ -z "$$unhealthy" ]; then \
+				echo "✅ All containers healthy"; \
+				exit 0; \
+			fi; \
+			sleep 2; \
+		done; \
+		echo "❌ Containers not healthy in time"; \
+		docker compose logs; \
+		exit 1'
+
+	@echo "🛡️ Running ASVS security tests..."
+	go run ./cmd/securitytest
+
+	@echo "🧹 Stopping containers..."
+	docker compose down
