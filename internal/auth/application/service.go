@@ -12,11 +12,12 @@ type Service struct {
 	hasher   PasswordHasher
 	tokenGen TokenGenerator
 	userSvc  UserService
+	storeSvc StoreService
 }
 
 type IDGenerator interface {
 	GenerateAuthID() domain.ID
-	GenerateUserID() domain.UserID
+	GenerateAccountID() domain.AccountID
 }
 
 type PasswordHasher interface {
@@ -25,11 +26,15 @@ type PasswordHasher interface {
 }
 
 type TokenGenerator interface {
-	Generate(authID domain.ID, userID domain.UserID) (string, error)
+	Generate(authID domain.ID, accountType domain.AccountType, accountID domain.AccountID) (string, error)
 }
 
 type UserService interface {
-	Create(ctx context.Context, firstName, lastName string, id domain.UserID) error
+	Create(ctx context.Context, firstName, lastName string, id domain.AccountID) error
+}
+
+type StoreService interface {
+	Create(ctx context.Context, name, description, address, phoneNumber string, id domain.AccountID) error
 }
 
 func NewService(
@@ -38,6 +43,7 @@ func NewService(
 	hasher PasswordHasher,
 	tokenGen TokenGenerator,
 	userSvc UserService,
+	storeSvc StoreService,
 ) *Service {
 	return &Service{
 		repo:     repo,
@@ -45,57 +51,93 @@ func NewService(
 		hasher:   hasher,
 		tokenGen: tokenGen,
 		userSvc:  userSvc,
+		storeSvc: storeSvc,
 	}
 }
 
-type RegisterInput struct {
+type RegisterUserInput struct {
 	Email     string
 	Password  string
 	FirstName string
 	LastName  string
 }
 
-type RegisterOutput struct {
-	AuthID    domain.ID
-	UserID    domain.UserID
-	Email     string
-	FirstName string
-	LastName  string
+type RegisterStoreInput struct {
+	Email       string
+	Password    string
+	Name        string
+	Description string
+	Address     string
+	PhoneNumber string
 }
 
-func (s *Service) Register(ctx context.Context, input RegisterInput) (*RegisterOutput, error) {
-	existing, err := s.repo.FindByEmail(ctx, input.Email)
-	if err == nil && existing != nil {
-		return nil, domain.ErrEmailExists
-	}
+type RegisterOutput struct {
+	AuthID      domain.ID
+	AccountID   domain.AccountID
+	AccountType domain.AccountType
+	Email       string
+}
 
-	userID := s.idGen.GenerateUserID()
-
-	if err := s.userSvc.Create(ctx, input.FirstName, input.LastName, userID); err != nil {
+func (s *Service) RegisterUser(ctx context.Context, input RegisterUserInput) (*RegisterOutput, error) {
+	if err := s.checkEmailAvailable(ctx, input.Email); err != nil {
 		return nil, err
 	}
 
-	hashedPassword, err := s.hasher.Hash(input.Password)
+	accountID := s.idGen.GenerateAccountID()
+	if err := s.userSvc.Create(ctx, input.FirstName, input.LastName, accountID); err != nil {
+		return nil, err
+	}
+
+	return s.createAuth(ctx, input.Email, input.Password, accountID, domain.AccountTypeUser)
+}
+
+func (s *Service) RegisterStore(ctx context.Context, input RegisterStoreInput) (*RegisterOutput, error) {
+	if err := s.checkEmailAvailable(ctx, input.Email); err != nil {
+		return nil, err
+	}
+
+	accountID := s.idGen.GenerateAccountID()
+	if err := s.storeSvc.Create(ctx, input.Name, input.Description, input.Address, input.PhoneNumber, accountID); err != nil {
+		return nil, err
+	}
+
+	return s.createAuth(ctx, input.Email, input.Password, accountID, domain.AccountTypeStore)
+}
+
+func (s *Service) checkEmailAvailable(ctx context.Context, email string) error {
+	existing, err := s.repo.FindByEmail(ctx, email)
+	if err == nil && existing != nil {
+		return domain.ErrEmailExists
+	}
+	return nil
+}
+
+func (s *Service) createAuth(
+	ctx context.Context,
+	email, password string,
+	accountID domain.AccountID,
+	accountType domain.AccountType,
+) (*RegisterOutput, error) {
+	hashedPassword, err := s.hasher.Hash(password)
 	if err != nil {
 		return nil, err
 	}
 
 	authID := s.idGen.GenerateAuthID()
-	a, err := domain.NewAuth(authID, input.Email, hashedPassword, userID)
+	auth, err := domain.NewAuth(authID, email, hashedPassword, accountID, accountType)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.repo.Save(ctx, a); err != nil {
+	if err := s.repo.Save(ctx, auth); err != nil {
 		return nil, err
 	}
 
 	return &RegisterOutput{
-		AuthID:    a.ID(),
-		UserID:    userID,
-		Email:     a.Email(),
-		FirstName: input.FirstName,
-		LastName:  input.LastName,
+		AuthID:      auth.ID(),
+		AccountID:   accountID,
+		AccountType: accountType,
+		Email:       auth.Email(),
 	}, nil
 }
 
@@ -105,27 +147,29 @@ type LoginInput struct {
 }
 
 type LoginOutput struct {
-	Token  string
-	UserID domain.UserID
+	Token       string
+	AccountID   domain.AccountID
+	AccountType domain.AccountType
 }
 
 func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginOutput, error) {
-	a, err := s.repo.FindByEmail(ctx, input.Email)
+	auth, err := s.repo.FindByEmail(ctx, input.Email)
 	if err != nil {
 		return nil, domain.ErrInvalidCredentials
 	}
 
-	if err := s.hasher.Compare(a.Password(), input.Password); err != nil {
+	if err := s.hasher.Compare(auth.Password(), input.Password); err != nil {
 		return nil, domain.ErrInvalidCredentials
 	}
 
-	token, err := s.tokenGen.Generate(a.ID(), a.UserID())
+	token, err := s.tokenGen.Generate(auth.ID(), auth.AccountType(), auth.AccountID())
 	if err != nil {
 		return nil, err
 	}
 
 	return &LoginOutput{
-		Token:  token,
-		UserID: a.UserID(),
+		Token:       token,
+		AccountID:   auth.AccountID(),
+		AccountType: auth.AccountType(),
 	}, nil
 }

@@ -5,44 +5,64 @@ import "errors"
 var (
 	ErrInvalidEmail       = errors.New("invalid email")
 	ErrInvalidPassword    = errors.New("password must be at least 8 characters")
-	ErrInvalidUserID      = errors.New("user ID cannot be empty")
+	ErrInvalidAccountID   = errors.New("account ID cannot be empty")
+	ErrInvalidAccountType = errors.New("invalid account type")
 	ErrAuthNotFound       = errors.New("auth not found")
 	ErrEmailExists        = errors.New("email already exists")
 	ErrInvalidCredentials = errors.New("invalid credentials")
 )
 
-type ID string
-type UserID string
+type (
+	ID        string
+	AccountID string
+)
 
-type Auth struct {
-	id       ID
-	email    string
-	password string
-	userID   UserID
+type AccountType string
+
+const (
+	AccountTypeUser  AccountType = "user"
+	AccountTypeStore AccountType = "store"
+)
+
+func (at AccountType) IsValid() bool {
+	return at == AccountTypeUser || at == AccountTypeStore
 }
 
-func NewAuth(id ID, email, password string, userID UserID) (*Auth, error) {
+type Auth struct {
+	id          ID
+	email       string
+	password    string
+	accountID   AccountID
+	accountType AccountType
+}
+
+func NewAuth(id ID, email, password string, accountID AccountID, accountType AccountType) (*Auth, error) {
 	if !isValidEmail(email) {
 		return nil, ErrInvalidEmail
 	}
 	if len(password) < 8 {
 		return nil, ErrInvalidPassword
 	}
-	if userID == "" {
-		return nil, ErrInvalidUserID
+	if accountID == "" {
+		return nil, ErrInvalidAccountID
+	}
+	if !accountType.IsValid() {
+		return nil, ErrInvalidAccountType
 	}
 	return &Auth{
-		id:       id,
-		email:    email,
-		password: password,
-		userID:   userID,
+		id:          id,
+		email:       email,
+		password:    password,
+		accountID:   accountID,
+		accountType: accountType,
 	}, nil
 }
 
-func (a *Auth) ID() ID           { return a.id }
-func (a *Auth) Email() string    { return a.email }
-func (a *Auth) Password() string { return a.password }
-func (a *Auth) UserID() UserID   { return a.userID }
+func (a *Auth) ID() ID                   { return a.id }
+func (a *Auth) Email() string            { return a.email }
+func (a *Auth) Password() string         { return a.password }
+func (a *Auth) AccountID() AccountID     { return a.accountID }
+func (a *Auth) AccountType() AccountType { return a.accountType }
 
 func (a *Auth) UpdatePassword(password string) error {
 	if len(password) < 8 {

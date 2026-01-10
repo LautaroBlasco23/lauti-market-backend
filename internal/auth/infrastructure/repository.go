@@ -2,58 +2,120 @@ package infrastructure
 
 import (
 	"context"
-	"sync"
+	"database/sql"
+	"errors"
 
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/domain"
+	"github.com/lib/pq"
 )
 
-type InMemoryRepository struct {
-	mu      sync.RWMutex
-	auths   map[domain.ID]*domain.Auth
-	byEmail map[string]domain.ID
+type PostgresRepository struct {
+	db *sql.DB
 }
 
-func NewInMemoryRepository() *InMemoryRepository {
-	return &InMemoryRepository{
-		auths:   make(map[domain.ID]*domain.Auth),
-		byEmail: make(map[string]domain.ID),
+func NewPostgresRepository(db *sql.DB) *PostgresRepository {
+	return &PostgresRepository{db: db}
+}
+
+func (r *PostgresRepository) Save(ctx context.Context, a *domain.Auth) error {
+	query := `
+		INSERT INTO auths (id, email, password, account_id, account_type)
+		VALUES ($1, $2, $3, $4, $5)
+	`
+	_, err := r.db.ExecContext(ctx, query,
+		string(a.ID()),
+		a.Email(),
+		a.Password(),
+		string(a.AccountID()),
+		string(a.AccountType()),
+	)
+	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			return domain.ErrEmailExists
+		}
+		return err
 	}
-}
-
-func (r *InMemoryRepository) Save(_ context.Context, a *domain.Auth) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.auths[a.ID()] = a
-	r.byEmail[a.Email()] = a.ID()
 	return nil
 }
 
-func (r *InMemoryRepository) FindByID(_ context.Context, id domain.ID) (*domain.Auth, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	a, ok := r.auths[id]
-	if !ok {
-		return nil, domain.ErrAuthNotFound
-	}
-	return a, nil
+func (r *PostgresRepository) FindByID(ctx context.Context, id domain.ID) (*domain.Auth, error) {
+	query := `
+		SELECT id, email, password, account_id, account_type
+		FROM auths
+		WHERE id = $1
+	`
+	row := r.db.QueryRowContext(ctx, query, string(id))
+	return r.scanAuth(row)
 }
 
-func (r *InMemoryRepository) FindByEmail(_ context.Context, email string) (*domain.Auth, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	id, ok := r.byEmail[email]
-	if !ok {
-		return nil, domain.ErrAuthNotFound
-	}
-	return r.auths[id], nil
+func (r *PostgresRepository) FindByEmail(ctx context.Context, email string) (*domain.Auth, error) {
+	query := `
+		SELECT id, email, password, account_id, account_type
+		FROM auths
+		WHERE email = $1
+	`
+	row := r.db.QueryRowContext(ctx, query, email)
+	return r.scanAuth(row)
 }
 
-func (r *InMemoryRepository) Delete(_ context.Context, id domain.ID) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if a, ok := r.auths[id]; ok {
-		delete(r.byEmail, a.Email())
+func (r *PostgresRepository) Update(ctx context.Context, a *domain.Auth) error {
+	query := `
+		UPDATE auths
+		SET email = $2, password = $3
+		WHERE id = $1
+	`
+	result, err := r.db.ExecContext(ctx, query,
+		string(a.ID()),
+		a.Email(),
+		a.Password(),
+	)
+	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			return domain.ErrEmailExists
+		}
+		return err
 	}
-	delete(r.auths, id)
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return domain.ErrAuthNotFound
+	}
 	return nil
+}
+
+func (r *PostgresRepository) Delete(ctx context.Context, id domain.ID) error {
+	query := `DELETE FROM auths WHERE id = $1`
+	result, err := r.db.ExecContext(ctx, query, string(id))
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return domain.ErrAuthNotFound
+	}
+	return nil
+}
+
+func (r *PostgresRepository) scanAuth(row *sql.Row) (*domain.Auth, error) {
+	var id, email, password, accountID, accountType string
+	if err := row.Scan(&id, &email, &password, &accountID, &accountType); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, domain.ErrAuthNotFound
+		}
+		return nil, err
+	}
+	return domain.NewAuth(
+		domain.ID(id),
+		email,
+		password,
+		domain.AccountID(accountID),
+		domain.AccountType(accountType),
+	)
 }

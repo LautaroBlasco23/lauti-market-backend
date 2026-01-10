@@ -2,18 +2,21 @@ package infrastructure
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"time"
 
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/api"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/application"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/domain"
+	storedom "github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
+	storeinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure"
 	userdom "github.com/LautaroBlasco23/lauti-market-backend/internal/user/domain"
 	userinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure"
 )
 
 type Module struct {
-	Repository *InMemoryRepository
+	Repository *PostgresRepository
 	Service    *application.Service
 	Handler    *Handler
 }
@@ -31,15 +34,15 @@ func (a *idGenAdapter) GenerateAuthID() domain.ID {
 	return domain.ID(a.gen.Generate())
 }
 
-func (a *idGenAdapter) GenerateUserID() domain.UserID {
-	return domain.UserID(a.gen.Generate())
+func (a *idGenAdapter) GenerateAccountID() domain.AccountID {
+	return domain.AccountID(a.gen.Generate())
 }
 
 type userServiceAdapter struct {
-	repo *userinfra.InMemoryRepository
+	repo *userinfra.PostgresRepository
 }
 
-func (a *userServiceAdapter) Create(ctx context.Context, firstName, lastName string, id domain.UserID) error {
+func (a *userServiceAdapter) Create(ctx context.Context, firstName, lastName string, id domain.AccountID) error {
 	u, err := userdom.NewUser(userdom.ID(id), firstName, lastName)
 	if err != nil {
 		return err
@@ -47,8 +50,27 @@ func (a *userServiceAdapter) Create(ctx context.Context, firstName, lastName str
 	return a.repo.Save(ctx, u)
 }
 
-func Wire(mux *http.ServeMux, uuidGen *api.UUIDGenerator, userModule *userinfra.Module, cfg Config) *Module {
-	repo := NewInMemoryRepository()
+type storeServiceAdapter struct {
+	repo *storeinfra.PostgresRepository
+}
+
+func (a *storeServiceAdapter) Create(ctx context.Context, name, description, address, phoneNumber string, id domain.AccountID) error {
+	s, err := storedom.NewStore(storedom.ID(id), name, description, address, phoneNumber)
+	if err != nil {
+		return err
+	}
+	return a.repo.Save(ctx, s)
+}
+
+func Wire(
+	mux *http.ServeMux,
+	db *sql.DB,
+	uuidGen *api.UUIDGenerator,
+	userModule *userinfra.Module,
+	storeModule *storeinfra.Module,
+	cfg Config,
+) *Module {
+	repo := NewPostgresRepository(db)
 	hasher := NewBcryptHasher()
 	jwtGen := NewJWTGenerator(cfg.JWTSecret, cfg.JWTExpiration)
 
@@ -58,9 +80,10 @@ func Wire(mux *http.ServeMux, uuidGen *api.UUIDGenerator, userModule *userinfra.
 		hasher,
 		jwtGen,
 		&userServiceAdapter{repo: userModule.Repository},
+		&storeServiceAdapter{repo: storeModule.Repository},
 	)
-	handler := NewHandler(service)
 
+	handler := NewHandler(service)
 	RegisterRoutes(mux, handler)
 
 	return &Module{

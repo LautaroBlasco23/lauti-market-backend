@@ -21,15 +21,17 @@ func NewJWTGenerator(secret string, expiration time.Duration) *JWTGenerator {
 }
 
 type Claims struct {
-	AuthID string `json:"auth_id"`
-	UserID string `json:"user_id"`
+	AuthID      string             `json:"auth_id"`
+	AccountID   string             `json:"account_id"`
+	AccountType domain.AccountType `json:"account_type"`
 	jwt.RegisteredClaims
 }
 
-func (g *JWTGenerator) Generate(authID domain.ID, userID domain.UserID) (string, error) {
+func (g *JWTGenerator) Generate(authID domain.ID, accountType domain.AccountType, accountID domain.AccountID) (string, error) {
 	claims := Claims{
-		AuthID: string(authID),
-		UserID: string(userID),
+		AuthID:      string(authID),
+		AccountID:   string(accountID),
+		AccountType: accountType,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(g.expiration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
