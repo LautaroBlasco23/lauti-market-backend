@@ -9,6 +9,10 @@ import (
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/api"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/application"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/domain"
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/controller"
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/repository"
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/routes"
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/utils"
 	storedom "github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
 	storeinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure"
 	userdom "github.com/LautaroBlasco23/lauti-market-backend/internal/user/domain"
@@ -16,9 +20,9 @@ import (
 )
 
 type Module struct {
-	Repository *PostgresRepository
+	Repository *repository.AuthPostgresRepository
 	Service    *application.Service
-	Handler    *Handler
+	Controller *controller.Controller
 }
 
 type Config struct {
@@ -70,9 +74,9 @@ func Wire(
 	storeModule *storeinfra.Module,
 	cfg Config,
 ) *Module {
-	repo := NewPostgresRepository(db)
-	hasher := NewBcryptHasher()
-	jwtGen := NewJWTGenerator(cfg.JWTSecret, cfg.JWTExpiration)
+	repo := repository.NewPostgresRepository(db)
+	hasher := utils.NewBcryptHasher()
+	jwtGen := utils.NewJWTGenerator(cfg.JWTSecret, cfg.JWTExpiration)
 
 	service := application.NewService(
 		repo,
@@ -83,12 +87,12 @@ func Wire(
 		&storeServiceAdapter{repo: storeModule.Repository},
 	)
 
-	handler := NewHandler(service)
-	RegisterRoutes(mux, handler)
+	authController := controller.NewController(service)
+	routes.RegisterRoutes(mux, authController)
 
 	return &Module{
 		Repository: repo,
 		Service:    service,
-		Handler:    handler,
+		Controller: authController,
 	}
 }

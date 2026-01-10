@@ -1,4 +1,4 @@
-package infrastructure
+package controller
 
 import (
 	"encoding/json"
@@ -6,52 +6,19 @@ import (
 
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/application"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/domain"
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/dto"
 )
 
-type Handler struct {
+type Controller struct {
 	service *application.Service
 }
 
-func NewHandler(service *application.Service) *Handler {
-	return &Handler{service: service}
+func NewController(service *application.Service) *Controller {
+	return &Controller{service: service}
 }
 
-type registerUserRequest struct {
-	Email     string `json:"email"`
-	Password  string `json:"password"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-}
-
-type registerStoreRequest struct {
-	Email       string `json:"email"`
-	Password    string `json:"password"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Address     string `json:"address"`
-	PhoneNumber string `json:"phone_number"`
-}
-
-type loginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-type registerResponse struct {
-	AuthID      string `json:"auth_id"`
-	AccountID   string `json:"account_id"`
-	AccountType string `json:"account_type"`
-	Email       string `json:"email"`
-}
-
-type loginResponse struct {
-	Token       string `json:"token"`
-	AccountID   string `json:"account_id"`
-	AccountType string `json:"account_type"`
-}
-
-func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
-	var req registerUserRequest
+func (h *Controller) RegisterUser(w http.ResponseWriter, r *http.Request) {
+	var req dto.RegisterUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
@@ -70,7 +37,7 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(registerResponse{
+	json.NewEncoder(w).Encode(dto.RegisterResponse{
 		AuthID:      string(output.AuthID),
 		AccountID:   string(output.AccountID),
 		AccountType: string(output.AccountType),
@@ -78,8 +45,8 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *Handler) RegisterStore(w http.ResponseWriter, r *http.Request) {
-	var req registerStoreRequest
+func (h *Controller) RegisterStore(w http.ResponseWriter, r *http.Request) {
+	var req dto.RegisterStoreRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
@@ -100,7 +67,7 @@ func (h *Handler) RegisterStore(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(registerResponse{
+	json.NewEncoder(w).Encode(dto.RegisterResponse{
 		AuthID:      string(output.AuthID),
 		AccountID:   string(output.AccountID),
 		AccountType: string(output.AccountType),
@@ -108,8 +75,8 @@ func (h *Handler) RegisterStore(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	var req loginRequest
+func (h *Controller) Login(w http.ResponseWriter, r *http.Request) {
+	var req dto.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
@@ -125,14 +92,14 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(loginResponse{
+	json.NewEncoder(w).Encode(dto.LoginResponse{
 		Token:       output.Token,
 		AccountID:   string(output.AccountID),
 		AccountType: string(output.AccountType),
 	})
 }
 
-func (h *Handler) handleError(w http.ResponseWriter, err error) {
+func (h *Controller) handleError(w http.ResponseWriter, err error) {
 	switch err {
 	case domain.ErrEmailExists:
 		http.Error(w, err.Error(), http.StatusConflict)
