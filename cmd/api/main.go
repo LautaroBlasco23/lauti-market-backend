@@ -3,21 +3,38 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/LautaroBlasco23/lauti-market-backend/database"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/api"
 	authinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure"
+	storeinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure"
 	userinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure"
 )
 
 func main() {
+	postgres, err := database.NewPostgres(database.PostgresConfig{
+		Host:     getEnv("DB_HOST", "localhost"),
+		Port:     5432,
+		User:     getEnv("DB_USER", "postgres"),
+		Password: getEnv("DB_PASSWORD", "postgres"),
+		DBName:   getEnv("DB_NAME", "lauti_market"),
+		SSLMode:  getEnv("DB_SSLMODE", "disable"),
+	})
+	if err != nil {
+		log.Fatalf("failed to connect to database: %v", err)
+	}
+	defer postgres.Close()
+
+	db := postgres.DB()
 	mux := http.NewServeMux()
 	uuidGen := api.NewUUIDGenerator()
 
-	userModule := userinfra.Wire(mux, uuidGen)
-
-	authinfra.Wire(mux, uuidGen, userModule, authinfra.Config{
-		JWTSecret:     "your-secret-key-change-in-production",
+	userModule := userinfra.Wire(mux, db, uuidGen)
+	storeModule := storeinfra.Wire(mux, db, uuidGen)
+	authinfra.Wire(mux, db, uuidGen, userModule, storeModule, authinfra.Config{
+		JWTSecret:     getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
 		JWTExpiration: 24 * time.Hour,
 	})
 
@@ -25,4 +42,11 @@ func main() {
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func getEnv(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
 }
