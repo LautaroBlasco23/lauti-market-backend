@@ -2,42 +2,85 @@ package infrastructure
 
 import (
 	"context"
-	"sync"
+	"database/sql"
 
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/domain"
 )
 
-type InMemoryRepository struct {
-	mu    sync.RWMutex
-	users map[domain.ID]*domain.User
+type PostgresRepository struct {
+	db *sql.DB
 }
 
-func NewInMemoryRepository() *InMemoryRepository {
-	return &InMemoryRepository{
-		users: make(map[domain.ID]*domain.User),
+func NewPostgresRepository(db *sql.DB) *PostgresRepository {
+	return &PostgresRepository{db: db}
+}
+
+func (r *PostgresRepository) Save(ctx context.Context, u *domain.User) error {
+	query := `
+		INSERT INTO users (id, first_name, last_name)
+		VALUES ($1, $2, $3)
+	`
+	_, err := r.db.ExecContext(ctx, query,
+		string(u.ID()),
+		u.FirstName(),
+		u.LastName(),
+	)
+	return err
+}
+
+func (r *PostgresRepository) FindByID(ctx context.Context, id domain.ID) (*domain.User, error) {
+	query := `
+		SELECT id, first_name, last_name
+		FROM users
+		WHERE id = $1
+	`
+	var userID, firstName, lastName string
+	err := r.db.QueryRowContext(ctx, query, string(id)).Scan(&userID, &firstName, &lastName)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, domain.ErrUserNotFound
+		}
+		return nil, err
 	}
+	return domain.NewUser(domain.ID(userID), firstName, lastName)
 }
 
-func (r *InMemoryRepository) Save(_ context.Context, u *domain.User) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.users[u.ID()] = u
+func (r *PostgresRepository) Update(ctx context.Context, u *domain.User) error {
+	query := `
+		UPDATE users
+		SET first_name = $2, last_name = $3
+		WHERE id = $1
+	`
+	result, err := r.db.ExecContext(ctx, query,
+		string(u.ID()),
+		u.FirstName(),
+		u.LastName(),
+	)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return domain.ErrUserNotFound
+	}
 	return nil
 }
 
-func (r *InMemoryRepository) FindByID(_ context.Context, id domain.ID) (*domain.User, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	u, ok := r.users[id]
-	if !ok {
-		return nil, domain.ErrUserNotFound
+func (r *PostgresRepository) Delete(ctx context.Context, id domain.ID) error {
+	query := `DELETE FROM users WHERE id = $1`
+	result, err := r.db.ExecContext(ctx, query, string(id))
+	if err != nil {
+		return err
 	}
-	return u, nil
-}
-
-func (r *InMemoryRepository) Delete(_ context.Context, id domain.ID) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	delete(r.users, id)
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return domain.ErrUserNotFound
+	}
 	return nil
 }
