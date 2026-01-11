@@ -3,19 +3,16 @@ package application
 import (
 	"context"
 
+	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
 )
 
-type IDGenerator interface {
-	GenerateStoreID() domain.ID
-}
-
 type Service struct {
 	repo  domain.Repository
-	idGen IDGenerator
+	idGen apiDomain.IDGenerator
 }
 
-func NewService(repo domain.Repository, idGen IDGenerator) *Service {
+func NewService(repo domain.Repository, idGen apiDomain.IDGenerator) *Service {
 	return &Service{
 		repo:  repo,
 		idGen: idGen,
@@ -30,7 +27,7 @@ type CreateStoreInput struct {
 }
 
 type UpdateStoreInput struct {
-	ID          domain.ID
+	ID          string
 	Name        string
 	Description string
 	Address     string
@@ -38,7 +35,7 @@ type UpdateStoreInput struct {
 }
 
 func (s *Service) Create(ctx context.Context, input CreateStoreInput) (*domain.Store, error) {
-	id := s.idGen.GenerateStoreID()
+	id := s.idGen.Generate()
 	store, err := domain.NewStore(id, input.Name, input.Description, input.Address, input.PhoneNumber)
 	if err != nil {
 		return nil, err
@@ -49,7 +46,7 @@ func (s *Service) Create(ctx context.Context, input CreateStoreInput) (*domain.S
 	return store, nil
 }
 
-func (s *Service) GetByID(ctx context.Context, id domain.ID) (*domain.Store, error) {
+func (s *Service) GetByID(ctx context.Context, id string) (*domain.Store, error) {
 	return s.repo.FindByID(ctx, id)
 }
 
@@ -77,6 +74,6 @@ func (s *Service) Update(ctx context.Context, input UpdateStoreInput) (*domain.S
 	return store, nil
 }
 
-func (s *Service) Delete(ctx context.Context, id domain.ID) error {
+func (s *Service) Delete(ctx context.Context, id string) error {
 	return s.repo.Delete(ctx, id)
 }

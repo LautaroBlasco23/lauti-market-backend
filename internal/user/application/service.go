@@ -3,19 +3,16 @@ package application
 import (
 	"context"
 
+	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/domain"
 )
 
 type Service struct {
 	repo  domain.Repository
-	idGen IDGenerator
+	idGen apiDomain.IDGenerator
 }
 
-type IDGenerator interface {
-	Generate() domain.ID
-}
-
-func NewService(repo domain.Repository, idGen IDGenerator) *Service {
+func NewService(repo domain.Repository, idGen apiDomain.IDGenerator) *Service {
 	return &Service{repo: repo, idGen: idGen}
 }
 
@@ -25,7 +22,7 @@ type CreateInput struct {
 }
 
 type Output struct {
-	ID        domain.ID
+	ID        string
 	FirstName string
 	LastName  string
 }
@@ -46,7 +43,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*Output, error
 	}, nil
 }
 
-func (s *Service) GetByID(ctx context.Context, id domain.ID) (*Output, error) {
+func (s *Service) GetByID(ctx context.Context, id string) (*Output, error) {
 	u, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -59,7 +56,7 @@ func (s *Service) GetByID(ctx context.Context, id domain.ID) (*Output, error) {
 }
 
 type UpdateInput struct {
-	ID        domain.ID
+	ID        string
 	FirstName string
 	LastName  string
 }
@@ -82,6 +79,6 @@ func (s *Service) Update(ctx context.Context, input UpdateInput) (*Output, error
 	}, nil
 }
 
-func (s *Service) Delete(ctx context.Context, id domain.ID) error {
+func (s *Service) Delete(ctx context.Context, id string) error {
 	return s.repo.Delete(ctx, id)
 }

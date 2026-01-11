@@ -12,11 +12,6 @@ var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 )
 
-type (
-	ID        string
-	AccountID string
-)
-
 type AccountType string
 
 const (
@@ -29,14 +24,14 @@ func (at AccountType) IsValid() bool {
 }
 
 type Auth struct {
-	id          ID
+	id          string
 	email       string
 	password    string
-	accountID   AccountID
+	accountID   string
 	accountType AccountType
 }
 
-func NewAuth(id ID, email, password string, accountID AccountID, accountType AccountType) (*Auth, error) {
+func NewAuth(id string, email, password string, accountID string, accountType AccountType) (*Auth, error) {
 	if !isValidEmail(email) {
 		return nil, ErrInvalidEmail
 	}
@@ -58,10 +53,10 @@ func NewAuth(id ID, email, password string, accountID AccountID, accountType Acc
 	}, nil
 }
 
-func (a *Auth) ID() ID                   { return a.id }
+func (a *Auth) ID() string               { return a.id }
 func (a *Auth) Email() string            { return a.email }
 func (a *Auth) Password() string         { return a.password }
-func (a *Auth) AccountID() AccountID     { return a.accountID }
+func (a *Auth) AccountID() string        { return a.accountID }
 func (a *Auth) AccountType() AccountType { return a.accountType }
 
 func (a *Auth) UpdatePassword(password string) error {

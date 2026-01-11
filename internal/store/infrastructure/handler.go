@@ -78,7 +78,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	store, err := h.service.GetByID(r.Context(), domain.ID(id))
+	store, err := h.service.GetByID(r.Context(), string(id))
 	if err != nil {
 		h.handleError(w, err)
 		return
@@ -118,7 +118,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	store, err := h.service.Update(r.Context(), application.UpdateStoreInput{
-		ID:          domain.ID(id),
+		ID:          string(id),
 		Name:        req.Name,
 		Description: req.Description,
 		Address:     req.Address,
@@ -140,7 +140,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.Delete(r.Context(), domain.ID(id)); err != nil {
+	if err := h.service.Delete(r.Context(), string(id)); err != nil {
 		h.handleError(w, err)
 		return
 	}

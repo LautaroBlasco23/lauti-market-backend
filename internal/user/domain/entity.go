@@ -8,15 +8,13 @@ var (
 	ErrUserNotFound     = errors.New("user not found")
 )
 
-type ID string
-
 type User struct {
-	id        ID
+	id        string
 	firstName string
 	lastName  string
 }
 
-func NewUser(id ID, firstName, lastName string) (*User, error) {
+func NewUser(id string, firstName, lastName string) (*User, error) {
 	if firstName == "" {
 		return nil, ErrInvalidFirstName
 	}
@@ -30,7 +28,7 @@ func NewUser(id ID, firstName, lastName string) (*User, error) {
 	}, nil
 }
 
-func (u *User) ID() ID            { return u.id }
+func (u *User) ID() string        { return u.id }
 func (u *User) FirstName() string { return u.firstName }
 func (u *User) LastName() string  { return u.lastName }
 

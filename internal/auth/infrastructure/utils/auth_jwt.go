@@ -20,6 +20,11 @@ func NewJWTGenerator(secret string, expiration time.Duration) *JWTGenerator {
 	}
 }
 
+type JwtConfig struct {
+	JWTSecret     string
+	JWTExpiration time.Duration
+}
+
 type Claims struct {
 	AuthID      string             `json:"auth_id"`
 	AccountID   string             `json:"account_id"`
@@ -27,7 +32,7 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-func (g *JWTGenerator) Generate(authID domain.ID, accountType domain.AccountType, accountID domain.AccountID) (string, error) {
+func (g *JWTGenerator) Generate(authID string, accountType domain.AccountType, accountID string) (string, error) {
 	claims := Claims{
 		AuthID:      string(authID),
 		AccountID:   string(accountID),

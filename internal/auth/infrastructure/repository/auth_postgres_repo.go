@@ -39,7 +39,7 @@ func (r *AuthPostgresRepository) Save(ctx context.Context, a *domain.Auth) error
 	return nil
 }
 
-func (r *AuthPostgresRepository) FindByID(ctx context.Context, id domain.ID) (*domain.Auth, error) {
+func (r *AuthPostgresRepository) FindByID(ctx context.Context, id string) (*domain.Auth, error) {
 	query := `
 		SELECT id, email, password, account_id, account_type
 		FROM auths
@@ -87,7 +87,7 @@ func (r *AuthPostgresRepository) Update(ctx context.Context, a *domain.Auth) err
 	return nil
 }
 
-func (r *AuthPostgresRepository) Delete(ctx context.Context, id domain.ID) error {
+func (r *AuthPostgresRepository) Delete(ctx context.Context, id string) error {
 	query := `DELETE FROM auths WHERE id = $1`
 	result, err := r.db.ExecContext(ctx, query, string(id))
 	if err != nil {
@@ -112,10 +112,10 @@ func (r *AuthPostgresRepository) scanAuth(row *sql.Row) (*domain.Auth, error) {
 		return nil, err
 	}
 	return domain.NewAuth(
-		domain.ID(id),
+		id,
 		email,
 		password,
-		domain.AccountID(accountID),
+		accountID,
 		domain.AccountType(accountType),
 	)
 }

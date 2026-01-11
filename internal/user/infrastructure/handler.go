@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/application"
-	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/domain"
 )
 
 type Handler struct {
@@ -29,7 +28,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	output, err := h.service.GetByID(r.Context(), domain.ID(id))
+	output, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
@@ -61,7 +60,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.service.Update(r.Context(), application.UpdateInput{
-		ID:        domain.ID(id),
+		ID:        id,
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
 	})
@@ -84,7 +83,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.Delete(r.Context(), domain.ID(id)); err != nil {
+	if err := h.service.Delete(r.Context(), id); err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}

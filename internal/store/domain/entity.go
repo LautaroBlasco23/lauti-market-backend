@@ -10,17 +10,15 @@ var (
 	ErrStoreNotFound      = errors.New("store not found")
 )
 
-type ID string
-
 type Store struct {
-	id          ID
+	id          string
 	name        string
 	description string
 	address     string
 	phoneNumber string
 }
 
-func NewStore(id ID, name, description, address, phoneNumber string) (*Store, error) {
+func NewStore(id string, name, description, address, phoneNumber string) (*Store, error) {
 	if name == "" {
 		return nil, ErrInvalidName
 	}
@@ -42,7 +40,7 @@ func NewStore(id ID, name, description, address, phoneNumber string) (*Store, er
 	}, nil
 }
 
-func (s *Store) ID() ID              { return s.id }
+func (s *Store) ID() string          { return s.id }
 func (s *Store) Name() string        { return s.name }
 func (s *Store) Description() string { return s.description }
 func (s *Store) Address() string     { return s.address }

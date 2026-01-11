@@ -4,11 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
-	"time"
 
-	"github.com/LautaroBlasco23/lauti-market-backend/internal/api"
+	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/application"
-	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/controller"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/repository"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/routes"
@@ -25,29 +23,12 @@ type Module struct {
 	Controller *controller.Controller
 }
 
-type Config struct {
-	JWTSecret     string
-	JWTExpiration time.Duration
-}
-
-type idGenAdapter struct {
-	gen *api.UUIDGenerator
-}
-
-func (a *idGenAdapter) GenerateAuthID() domain.ID {
-	return domain.ID(a.gen.Generate())
-}
-
-func (a *idGenAdapter) GenerateAccountID() domain.AccountID {
-	return domain.AccountID(a.gen.Generate())
-}
-
 type userServiceAdapter struct {
 	repo *userinfra.PostgresRepository
 }
 
-func (a *userServiceAdapter) Create(ctx context.Context, firstName, lastName string, id domain.AccountID) error {
-	u, err := userdom.NewUser(userdom.ID(id), firstName, lastName)
+func (a *userServiceAdapter) Create(ctx context.Context, firstName, lastName string, id string) error {
+	u, err := userdom.NewUser(id, firstName, lastName)
 	if err != nil {
 		return err
 	}
@@ -58,8 +39,8 @@ type storeServiceAdapter struct {
 	repo *storeinfra.PostgresRepository
 }
 
-func (a *storeServiceAdapter) Create(ctx context.Context, name, description, address, phoneNumber string, id domain.AccountID) error {
-	s, err := storedom.NewStore(storedom.ID(id), name, description, address, phoneNumber)
+func (a *storeServiceAdapter) Create(ctx context.Context, name, description, address, phoneNumber string, id string) error {
+	s, err := storedom.NewStore(id, name, description, address, phoneNumber)
 	if err != nil {
 		return err
 	}
@@ -69,10 +50,10 @@ func (a *storeServiceAdapter) Create(ctx context.Context, name, description, add
 func Wire(
 	mux *http.ServeMux,
 	db *sql.DB,
-	uuidGen *api.UUIDGenerator,
+	idGen apiDomain.IDGenerator,
 	userModule *userinfra.Module,
 	storeModule *storeinfra.Module,
-	cfg Config,
+	cfg utils.JwtConfig,
 ) *Module {
 	repo := repository.NewPostgresRepository(db)
 	hasher := utils.NewBcryptHasher()
@@ -80,7 +61,7 @@ func Wire(
 
 	service := application.NewService(
 		repo,
-		&idGenAdapter{gen: uuidGen},
+		idGen,
 		hasher,
 		jwtGen,
 		&userServiceAdapter{repo: userModule.Repository},

@@ -3,21 +3,17 @@ package application
 import (
 	"context"
 
+	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/domain"
 )
 
 type Service struct {
 	repo     domain.Repository
-	idGen    IDGenerator
+	idGen    apiDomain.IDGenerator
 	hasher   PasswordHasher
 	tokenGen TokenGenerator
 	userSvc  UserService
 	storeSvc StoreService
-}
-
-type IDGenerator interface {
-	GenerateAuthID() domain.ID
-	GenerateAccountID() domain.AccountID
 }
 
 type PasswordHasher interface {
@@ -26,20 +22,20 @@ type PasswordHasher interface {
 }
 
 type TokenGenerator interface {
-	Generate(authID domain.ID, accountType domain.AccountType, accountID domain.AccountID) (string, error)
+	Generate(authID string, accountType domain.AccountType, accountID string) (string, error)
 }
 
 type UserService interface {
-	Create(ctx context.Context, firstName, lastName string, id domain.AccountID) error
+	Create(ctx context.Context, firstName, lastName string, id string) error
 }
 
 type StoreService interface {
-	Create(ctx context.Context, name, description, address, phoneNumber string, id domain.AccountID) error
+	Create(ctx context.Context, name, description, address, phoneNumber string, id string) error
 }
 
 func NewService(
 	repo domain.Repository,
-	idGen IDGenerator,
+	idGen apiDomain.IDGenerator,
 	hasher PasswordHasher,
 	tokenGen TokenGenerator,
 	userSvc UserService,
@@ -72,8 +68,8 @@ type RegisterStoreInput struct {
 }
 
 type RegisterOutput struct {
-	AuthID      domain.ID
-	AccountID   domain.AccountID
+	AuthID      string
+	AccountID   string
 	AccountType domain.AccountType
 	Email       string
 }
@@ -83,7 +79,7 @@ func (s *Service) RegisterUser(ctx context.Context, input RegisterUserInput) (*R
 		return nil, err
 	}
 
-	accountID := s.idGen.GenerateAccountID()
+	accountID := s.idGen.Generate()
 	if err := s.userSvc.Create(ctx, input.FirstName, input.LastName, accountID); err != nil {
 		return nil, err
 	}
@@ -96,7 +92,7 @@ func (s *Service) RegisterStore(ctx context.Context, input RegisterStoreInput) (
 		return nil, err
 	}
 
-	accountID := s.idGen.GenerateAccountID()
+	accountID := s.idGen.Generate()
 	if err := s.storeSvc.Create(ctx, input.Name, input.Description, input.Address, input.PhoneNumber, accountID); err != nil {
 		return nil, err
 	}
@@ -115,7 +111,7 @@ func (s *Service) checkEmailAvailable(ctx context.Context, email string) error {
 func (s *Service) createAuth(
 	ctx context.Context,
 	email, password string,
-	accountID domain.AccountID,
+	accountID string,
 	accountType domain.AccountType,
 ) (*RegisterOutput, error) {
 	hashedPassword, err := s.hasher.Hash(password)
@@ -123,7 +119,7 @@ func (s *Service) createAuth(
 		return nil, err
 	}
 
-	authID := s.idGen.GenerateAuthID()
+	authID := s.idGen.Generate()
 	auth, err := domain.NewAuth(authID, email, hashedPassword, accountID, accountType)
 	if err != nil {
 		return nil, err
@@ -148,7 +144,7 @@ type LoginInput struct {
 
 type LoginOutput struct {
 	Token       string
-	AccountID   domain.AccountID
+	AccountID   string
 	AccountType domain.AccountType
 }
 

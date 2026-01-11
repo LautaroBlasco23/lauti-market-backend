@@ -28,7 +28,7 @@ func (r *PostgresRepository) Save(ctx context.Context, u *domain.User) error {
 	return err
 }
 
-func (r *PostgresRepository) FindByID(ctx context.Context, id domain.ID) (*domain.User, error) {
+func (r *PostgresRepository) FindByID(ctx context.Context, id string) (*domain.User, error) {
 	query := `
 		SELECT id, first_name, last_name
 		FROM users
@@ -42,7 +42,7 @@ func (r *PostgresRepository) FindByID(ctx context.Context, id domain.ID) (*domai
 		}
 		return nil, err
 	}
-	return domain.NewUser(domain.ID(userID), firstName, lastName)
+	return domain.NewUser(string(userID), firstName, lastName)
 }
 
 func (r *PostgresRepository) Update(ctx context.Context, u *domain.User) error {
@@ -69,7 +69,7 @@ func (r *PostgresRepository) Update(ctx context.Context, u *domain.User) error {
 	return nil
 }
 
-func (r *PostgresRepository) Delete(ctx context.Context, id domain.ID) error {
+func (r *PostgresRepository) Delete(ctx context.Context, id string) error {
 	query := `DELETE FROM users WHERE id = $1`
 	result, err := r.db.ExecContext(ctx, query, string(id))
 	if err != nil {

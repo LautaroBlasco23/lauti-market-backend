@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"github.com/LautaroBlasco23/lauti-market-backend/database"
-	"github.com/LautaroBlasco23/lauti-market-backend/internal/api"
+	apiInfrastructure "github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	authinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure"
+	authUtils "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/utils"
 	storeinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure"
 	userinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure"
 )
@@ -29,11 +30,11 @@ func main() {
 
 	db := postgres.DB()
 	mux := http.NewServeMux()
-	uuidGen := api.NewUUIDGenerator()
+	uuidGen := apiInfrastructure.NewUUIDGenerator()
 
 	userModule := userinfra.Wire(mux, db, uuidGen)
 	storeModule := storeinfra.Wire(mux, db, uuidGen)
-	authinfra.Wire(mux, db, uuidGen, userModule, storeModule, authinfra.Config{
+	authinfra.Wire(mux, db, uuidGen, userModule, storeModule, authUtils.JwtConfig{
 		JWTSecret:     getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
 		JWTExpiration: 24 * time.Hour,
 	})

@@ -30,7 +30,7 @@ func (r *PostgresRepository) Save(ctx context.Context, store *domain.Store) erro
 	return err
 }
 
-func (r *PostgresRepository) FindByID(ctx context.Context, id domain.ID) (*domain.Store, error) {
+func (r *PostgresRepository) FindByID(ctx context.Context, id string) (*domain.Store, error) {
 	query := `
 		SELECT id, name, description, address, phone_number
 		FROM stores
@@ -90,7 +90,7 @@ func (r *PostgresRepository) Update(ctx context.Context, store *domain.Store) er
 	return nil
 }
 
-func (r *PostgresRepository) Delete(ctx context.Context, id domain.ID) error {
+func (r *PostgresRepository) Delete(ctx context.Context, id string) error {
 	query := `DELETE FROM stores WHERE id = $1`
 	result, err := r.db.ExecContext(ctx, query, string(id))
 	if err != nil {
@@ -114,7 +114,7 @@ func (r *PostgresRepository) scanStore(row *sql.Row) (*domain.Store, error) {
 		}
 		return nil, err
 	}
-	return domain.NewStore(domain.ID(id), name, description, address, phoneNumber)
+	return domain.NewStore(string(id), name, description, address, phoneNumber)
 }
 
 func (r *PostgresRepository) scanStoreFromRows(rows *sql.Rows) (*domain.Store, error) {
@@ -122,5 +122,5 @@ func (r *PostgresRepository) scanStoreFromRows(rows *sql.Rows) (*domain.Store, e
 	if err := rows.Scan(&id, &name, &description, &address, &phoneNumber); err != nil {
 		return nil, err
 	}
-	return domain.NewStore(domain.ID(id), name, description, address, phoneNumber)
+	return domain.NewStore(string(id), name, description, address, phoneNumber)
 }
