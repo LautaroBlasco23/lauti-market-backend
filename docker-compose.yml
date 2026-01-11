@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: gamedb
+      POSTGRES_DB: lauti_market
     ports:
       - "5432:5432"
     volumes:
@@ -42,7 +42,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/gamedb?sslmode=disable
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/lauti_market?sslmode=disable
       - REDIS_URL=redis:6379
       - PORT=8080
     depends_on:

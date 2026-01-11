@@ -1,4 +1,4 @@
-.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-security
+.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-security wait-db
 .DEFAULT_GOAL := help
 
 help:
@@ -19,6 +19,7 @@ help:
 	@echo "    db-up              - Start databases"
 	@echo "    db-down            - Stop databases"
 	@echo "    db-remove          - Remove databases and volumes"
+	@echo "    wait-db            - Wait for databases to be ready"
 
 install-tools:
 	go install mvdan.cc/gofumpt@latest
@@ -30,7 +31,13 @@ code-check:
 	gofumpt -l -w .
 	golangci-lint run --fix ./...
 
-dev: db-up
+wait-db:
+	@echo "⏳ Waiting for databases..."
+	@timeout 60 sh -c 'until docker exec lauti-market-postgres pg_isready -U postgres -d lauti_market > /dev/null 2>&1; do sleep 1; done' || (echo "❌ PostgreSQL timeout"; exit 1)
+	@timeout 30 sh -c 'until docker exec lauti-market-redis redis-cli ping > /dev/null 2>&1; do sleep 1; done' || (echo "❌ Redis timeout"; exit 1)
+	@echo "✅ Databases ready"
+
+dev: db-up wait-db
 	ENV_FILE=.env air -c .air.toml
 
 docker-up:
@@ -60,24 +67,10 @@ test-security:
 	@[ -f .env ] || (echo ".env not found"; exit 1)
 	@echo "🐳 Starting containers..."
 	docker compose --env-file .env up -d --build
-
 	@echo "⏳ Waiting for containers to be healthy..."
-	@sh -c '\
-		set -e; \
-		for i in $$(seq 1 60); do \
-			unhealthy=$$(docker inspect --format="{{.State.Health.Status}}" $$(docker compose ps -q) 2>/dev/null | grep -v healthy || true); \
-			if [ -z "$$unhealthy" ]; then \
-				echo "✅ All containers healthy"; \
-				exit 0; \
-			fi; \
-			sleep 2; \
-		done; \
-		echo "❌ Containers not healthy in time"; \
-		docker compose logs; \
-		exit 1'
-
+	@timeout 120 sh -c 'while [ -n "$$(docker compose ps -q | xargs docker inspect --format="{{.State.Health.Status}}" 2>/dev/null | grep -v healthy)" ]; do sleep 2; done' || (echo "❌ Timeout"; docker compose logs; exit 1)
+	@echo "✅ All containers healthy"
 	@echo "🛡️ Running ASVS security tests..."
 	go run ./cmd/securitytest
-
 	@echo "🧹 Stopping containers..."
 	docker compose down
