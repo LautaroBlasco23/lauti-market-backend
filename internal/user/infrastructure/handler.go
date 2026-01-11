@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/application"
+	userDto "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure/dto"
 )
 
 type Handler struct {
@@ -41,11 +43,6 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-type UpdateRequest struct {
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-}
-
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
@@ -53,9 +50,19 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req UpdateRequest
+	var req userDto.UpdateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if err := infrastructure.Validate(req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]any{
+			"error":  "invalid_payload",
+			"fields": infrastructure.FieldErrors(err),
+		})
 		return
 	}
 

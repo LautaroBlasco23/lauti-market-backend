@@ -4,16 +4,17 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/application"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/dto"
 )
 
 type Controller struct {
-	service *application.Service
+	service *application.AuthService
 }
 
-func NewController(service *application.Service) *Controller {
+func NewController(service *application.AuthService) *Controller {
 	return &Controller{service: service}
 }
 
@@ -21,6 +22,16 @@ func (h *Controller) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	var req dto.RegisterUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := infrastructure.Validate(req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]any{
+			"error":  "invalid_payload",
+			"fields": infrastructure.FieldErrors(err),
+		})
 		return
 	}
 
@@ -52,6 +63,16 @@ func (h *Controller) RegisterStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := infrastructure.Validate(req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]any{
+			"error":  "invalid_payload",
+			"fields": infrastructure.FieldErrors(err),
+		})
+		return
+	}
+
 	output, err := h.service.RegisterStore(r.Context(), application.RegisterStoreInput{
 		Email:       req.Email,
 		Password:    req.Password,
@@ -79,6 +100,16 @@ func (h *Controller) Login(w http.ResponseWriter, r *http.Request) {
 	var req dto.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := infrastructure.Validate(req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]any{
+			"error":  "invalid_payload",
+			"fields": infrastructure.FieldErrors(err),
+		})
 		return
 	}
 

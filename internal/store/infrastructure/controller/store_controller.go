@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/application"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure/dto"
@@ -70,6 +71,16 @@ func (h *StoreController) Update(w http.ResponseWriter, r *http.Request) {
 	var req dto.UpdateStoreRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := infrastructure.Validate(req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]any{
+			"error":  "invalid_payload",
+			"fields": infrastructure.FieldErrors(err),
+		})
 		return
 	}
 
