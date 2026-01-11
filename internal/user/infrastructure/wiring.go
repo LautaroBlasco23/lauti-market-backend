@@ -11,20 +11,20 @@ import (
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure/routes"
 )
 
-type Module struct {
+type UserModule struct {
 	Repository *repository.UserPostgresRepository
 	Service    *application.UserService
 	Controller *controller.UserController
 }
 
-func Wire(mux *http.ServeMux, db *sql.DB, idGen apiDomain.IDGenerator) *Module {
+func Wire(mux *http.ServeMux, db *sql.DB, idGen apiDomain.IDGenerator) *UserModule {
 	repo := repository.NewUserPostgresRepository(db)
 	service := application.NewService(repo, idGen)
 	userController := controller.NewUserController(service)
 
 	routes.RegisterUserRoutes(mux, userController)
 
-	return &Module{
+	return &UserModule{
 		Repository: repo,
 		Service:    service,
 		Controller: userController,

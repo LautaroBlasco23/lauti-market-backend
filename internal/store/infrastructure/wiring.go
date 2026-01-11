@@ -11,20 +11,20 @@ import (
 	storeRoutes "github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure/routes"
 )
 
-type Module struct {
+type StoreModule struct {
 	Repository *repository.StorePostgresRepository
 	Service    *application.StoreService
 	Controller *storeController.StoreController
 }
 
-func Wire(mux *http.ServeMux, db *sql.DB, idGen apiDomain.IDGenerator) *Module {
+func Wire(mux *http.ServeMux, db *sql.DB, idGen apiDomain.IDGenerator) *StoreModule {
 	repo := repository.NewStorePostgresRepository(db)
 	service := application.NewService(repo, idGen)
 	storeController := storeController.NewStoreController(service)
 
 	storeRoutes.RegisterRoutes(mux, storeController)
 
-	return &Module{
+	return &StoreModule{
 		Repository: repo,
 		Service:    service,
 		Controller: storeController,

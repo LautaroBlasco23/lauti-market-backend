@@ -14,7 +14,7 @@ import (
 	userinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure"
 )
 
-type Module struct {
+type AuthModule struct {
 	Repository *repository.AuthPostgresRepository
 	Service    *application.AuthService
 	Controller *controller.Controller
@@ -24,10 +24,10 @@ func Wire(
 	mux *http.ServeMux,
 	db *sql.DB,
 	idGen apiDomain.IDGenerator,
-	userModule *userinfra.Module,
-	storeModule *storeinfra.Module,
+	userModule *userinfra.UserModule,
+	storeModule *storeinfra.StoreModule,
 	cfg utils.JwtConfig,
-) *Module {
+) *AuthModule {
 	repo := repository.NewPostgresRepository(db)
 	hasher := utils.NewBcryptHasher()
 	jwtGen := utils.NewJWTGenerator(cfg.JWTSecret, cfg.JWTExpiration)
@@ -44,7 +44,7 @@ func Wire(
 	authController := controller.NewController(service)
 	routes.RegisterRoutes(mux, authController)
 
-	return &Module{
+	return &AuthModule{
 		Repository: repo,
 		Service:    service,
 		Controller: authController,
