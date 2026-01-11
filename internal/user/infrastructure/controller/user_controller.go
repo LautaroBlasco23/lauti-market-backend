@@ -1,4 +1,4 @@
-package infrastructure
+package controller
 
 import (
 	"encoding/json"
@@ -6,24 +6,19 @@ import (
 
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/application"
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure/dto"
 	userDto "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure/dto"
 )
 
-type Handler struct {
+type UserController struct {
 	service *application.UserService
 }
 
-func NewHandler(service *application.UserService) *Handler {
-	return &Handler{service: service}
+func NewUserController(service *application.UserService) *UserController {
+	return &UserController{service: service}
 }
 
-type UserResponse struct {
-	ID        string `json:"id"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-}
-
-func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
+func (h *UserController) GetByID(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		writeError(w, http.StatusBadRequest, "missing user id")
@@ -36,14 +31,14 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, UserResponse{
+	writeJSON(w, http.StatusOK, dto.UserResponse{
 		ID:        string(output.ID),
 		FirstName: output.FirstName,
 		LastName:  output.LastName,
 	})
 }
 
-func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+func (h *UserController) Update(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		writeError(w, http.StatusBadRequest, "missing user id")
@@ -76,14 +71,14 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, UserResponse{
+	writeJSON(w, http.StatusOK, dto.UserResponse{
 		ID:        string(output.ID),
 		FirstName: output.FirstName,
 		LastName:  output.LastName,
 	})
 }
 
-func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+func (h *UserController) Delete(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		writeError(w, http.StatusBadRequest, "missing user id")

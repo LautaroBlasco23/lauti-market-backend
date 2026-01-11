@@ -1,4 +1,4 @@
-package infrastructure
+package repository
 
 import (
 	"context"
@@ -7,15 +7,15 @@ import (
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/domain"
 )
 
-type PostgresRepository struct {
+type UserPostgresRepository struct {
 	db *sql.DB
 }
 
-func NewPostgresRepository(db *sql.DB) *PostgresRepository {
-	return &PostgresRepository{db: db}
+func NewUserPostgresRepository(db *sql.DB) *UserPostgresRepository {
+	return &UserPostgresRepository{db: db}
 }
 
-func (r *PostgresRepository) Save(ctx context.Context, u *domain.User) error {
+func (r *UserPostgresRepository) Save(ctx context.Context, u *domain.User) error {
 	query := `
 		INSERT INTO users (id, first_name, last_name)
 		VALUES ($1, $2, $3)
@@ -28,7 +28,7 @@ func (r *PostgresRepository) Save(ctx context.Context, u *domain.User) error {
 	return err
 }
 
-func (r *PostgresRepository) FindByID(ctx context.Context, id string) (*domain.User, error) {
+func (r *UserPostgresRepository) FindByID(ctx context.Context, id string) (*domain.User, error) {
 	query := `
 		SELECT id, first_name, last_name
 		FROM users
@@ -45,7 +45,7 @@ func (r *PostgresRepository) FindByID(ctx context.Context, id string) (*domain.U
 	return domain.NewUser(string(userID), firstName, lastName)
 }
 
-func (r *PostgresRepository) Update(ctx context.Context, u *domain.User) error {
+func (r *UserPostgresRepository) Update(ctx context.Context, u *domain.User) error {
 	query := `
 		UPDATE users
 		SET first_name = $2, last_name = $3
@@ -69,7 +69,7 @@ func (r *PostgresRepository) Update(ctx context.Context, u *domain.User) error {
 	return nil
 }
 
-func (r *PostgresRepository) Delete(ctx context.Context, id string) error {
+func (r *UserPostgresRepository) Delete(ctx context.Context, id string) error {
 	query := `DELETE FROM users WHERE id = $1`
 	result, err := r.db.ExecContext(ctx, query, string(id))
 	if err != nil {
