@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/LautaroBlasco23/lauti-market-backend/database"
@@ -15,6 +20,12 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	postgres, err := database.NewPostgres(database.PostgresConfig{
 		Host:     getEnv("DB_HOST", "localhost"),
 		Port:     5432,
@@ -24,7 +35,7 @@ func main() {
 		SSLMode:  getEnv("DB_SSLMODE", "disable"),
 	})
 	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		return fmt.Errorf("connecting to database: %w", err)
 	}
 	defer postgres.Close()
 
@@ -39,10 +50,41 @@ func main() {
 		JWTExpiration: 24 * time.Hour,
 	})
 
-	log.Println("Server starting on :8080")
-	if err := http.ListenAndServe(":8080", mux); err != nil {
-		log.Fatal(err)
+	server := &http.Server{
+		Addr:         getEnv("PORT", ":8000"),
+		Handler:      mux,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		log.Printf("Server starting on %s", server.Addr)
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+		}
+		close(errCh)
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case <-quit:
+		log.Println("Shutting down server...")
+	case err := <-errCh:
+		return fmt.Errorf("server error: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("server shutdown: %w", err)
+	}
+
+	return nil
 }
 
 func getEnv(key, fallback string) string {
