@@ -5,15 +5,17 @@ import (
 
 	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/domain"
+	storeApplication "github.com/LautaroBlasco23/lauti-market-backend/internal/store/application"
+	userApplication "github.com/LautaroBlasco23/lauti-market-backend/internal/user/application"
 )
 
-type Service struct {
+type AuthService struct {
 	repo     domain.Repository
 	idGen    apiDomain.IDGenerator
 	hasher   PasswordHasher
 	tokenGen TokenGenerator
-	userSvc  UserService
-	storeSvc StoreService
+	userSvc  *userApplication.UserService
+	storeSvc *storeApplication.StoreService
 }
 
 type PasswordHasher interface {
@@ -25,23 +27,15 @@ type TokenGenerator interface {
 	Generate(authID string, accountType domain.AccountType, accountID string) (string, error)
 }
 
-type UserService interface {
-	Create(ctx context.Context, firstName, lastName string, id string) error
-}
-
-type StoreService interface {
-	Create(ctx context.Context, name, description, address, phoneNumber string, id string) error
-}
-
 func NewService(
 	repo domain.Repository,
 	idGen apiDomain.IDGenerator,
 	hasher PasswordHasher,
 	tokenGen TokenGenerator,
-	userSvc UserService,
-	storeSvc StoreService,
-) *Service {
-	return &Service{
+	userSvc *userApplication.UserService,
+	storeSvc *storeApplication.StoreService,
+) *AuthService {
+	return &AuthService{
 		repo:     repo,
 		idGen:    idGen,
 		hasher:   hasher,
@@ -74,33 +68,44 @@ type RegisterOutput struct {
 	Email       string
 }
 
-func (s *Service) RegisterUser(ctx context.Context, input RegisterUserInput) (*RegisterOutput, error) {
+func (s *AuthService) RegisterUser(ctx context.Context, input RegisterUserInput) (*RegisterOutput, error) {
 	if err := s.checkEmailAvailable(ctx, input.Email); err != nil {
 		return nil, err
 	}
 
-	accountID := s.idGen.Generate()
-	if err := s.userSvc.Create(ctx, input.FirstName, input.LastName, accountID); err != nil {
+	createUserInput := userApplication.CreateInput{
+		FirstName: input.FirstName,
+		LastName:  input.LastName,
+	}
+	user, err := s.userSvc.Create(ctx, createUserInput)
+	if err != nil {
 		return nil, err
 	}
 
-	return s.createAuth(ctx, input.Email, input.Password, accountID, domain.AccountTypeUser)
+	return s.createAuth(ctx, input.Email, input.Password, user.ID, domain.AccountTypeUser)
 }
 
-func (s *Service) RegisterStore(ctx context.Context, input RegisterStoreInput) (*RegisterOutput, error) {
+func (s *AuthService) RegisterStore(ctx context.Context, input RegisterStoreInput) (*RegisterOutput, error) {
 	if err := s.checkEmailAvailable(ctx, input.Email); err != nil {
 		return nil, err
 	}
 
-	accountID := s.idGen.Generate()
-	if err := s.storeSvc.Create(ctx, input.Name, input.Description, input.Address, input.PhoneNumber, accountID); err != nil {
+	createStoreInput := storeApplication.CreateStoreInput{
+		Name:        input.Name,
+		Description: input.Description,
+		Address:     input.Address,
+		PhoneNumber: input.PhoneNumber,
+	}
+
+	store, err := s.storeSvc.Create(ctx, createStoreInput)
+	if err != nil {
 		return nil, err
 	}
 
-	return s.createAuth(ctx, input.Email, input.Password, accountID, domain.AccountTypeStore)
+	return s.createAuth(ctx, input.Email, input.Password, store.ID(), domain.AccountTypeStore)
 }
 
-func (s *Service) checkEmailAvailable(ctx context.Context, email string) error {
+func (s *AuthService) checkEmailAvailable(ctx context.Context, email string) error {
 	existing, err := s.repo.FindByEmail(ctx, email)
 	if err == nil && existing != nil {
 		return domain.ErrEmailExists
@@ -108,7 +113,7 @@ func (s *Service) checkEmailAvailable(ctx context.Context, email string) error {
 	return nil
 }
 
-func (s *Service) createAuth(
+func (s *AuthService) createAuth(
 	ctx context.Context,
 	email, password string,
 	accountID string,
@@ -148,7 +153,7 @@ type LoginOutput struct {
 	AccountType domain.AccountType
 }
 
-func (s *Service) Login(ctx context.Context, input LoginInput) (*LoginOutput, error) {
+func (s *AuthService) Login(ctx context.Context, input LoginInput) (*LoginOutput, error) {
 	auth, err := s.repo.FindByEmail(ctx, input.Email)
 	if err != nil {
 		return nil, domain.ErrInvalidCredentials
