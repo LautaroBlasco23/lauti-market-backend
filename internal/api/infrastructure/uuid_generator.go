@@ -1,6 +1,8 @@
-package api
+package infrastructure
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+)
 
 type UUIDGenerator struct{}
 
