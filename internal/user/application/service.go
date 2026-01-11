@@ -7,13 +7,13 @@ import (
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/domain"
 )
 
-type Service struct {
+type UserService struct {
 	repo  domain.Repository
 	idGen apiDomain.IDGenerator
 }
 
-func NewService(repo domain.Repository, idGen apiDomain.IDGenerator) *Service {
-	return &Service{repo: repo, idGen: idGen}
+func NewService(repo domain.Repository, idGen apiDomain.IDGenerator) *UserService {
+	return &UserService{repo: repo, idGen: idGen}
 }
 
 type CreateInput struct {
@@ -27,7 +27,7 @@ type Output struct {
 	LastName  string
 }
 
-func (s *Service) Create(ctx context.Context, input CreateInput) (*Output, error) {
+func (s *UserService) Create(ctx context.Context, input CreateInput) (*Output, error) {
 	id := s.idGen.Generate()
 	u, err := domain.NewUser(id, input.FirstName, input.LastName)
 	if err != nil {
@@ -43,7 +43,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*Output, error
 	}, nil
 }
 
-func (s *Service) GetByID(ctx context.Context, id string) (*Output, error) {
+func (s *UserService) GetByID(ctx context.Context, id string) (*Output, error) {
 	u, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -61,7 +61,7 @@ type UpdateInput struct {
 	LastName  string
 }
 
-func (s *Service) Update(ctx context.Context, input UpdateInput) (*Output, error) {
+func (s *UserService) Update(ctx context.Context, input UpdateInput) (*Output, error) {
 	u, err := s.repo.FindByID(ctx, input.ID)
 	if err != nil {
 		return nil, err
@@ -79,6 +79,6 @@ func (s *Service) Update(ctx context.Context, input UpdateInput) (*Output, error
 	}, nil
 }
 
-func (s *Service) Delete(ctx context.Context, id string) error {
+func (s *UserService) Delete(ctx context.Context, id string) error {
 	return s.repo.Delete(ctx, id)
 }

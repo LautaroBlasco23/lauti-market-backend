@@ -10,7 +10,7 @@ import (
 
 type Module struct {
 	Repository *PostgresRepository
-	Service    *application.Service
+	Service    *application.UserService
 	Handler    *Handler
 }
 

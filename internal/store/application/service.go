@@ -7,13 +7,13 @@ import (
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
 )
 
-type Service struct {
+type StoreService struct {
 	repo  domain.Repository
 	idGen apiDomain.IDGenerator
 }
 
-func NewService(repo domain.Repository, idGen apiDomain.IDGenerator) *Service {
-	return &Service{
+func NewService(repo domain.Repository, idGen apiDomain.IDGenerator) *StoreService {
+	return &StoreService{
 		repo:  repo,
 		idGen: idGen,
 	}
@@ -34,7 +34,7 @@ type UpdateStoreInput struct {
 	PhoneNumber string
 }
 
-func (s *Service) Create(ctx context.Context, input CreateStoreInput) (*domain.Store, error) {
+func (s *StoreService) Create(ctx context.Context, input CreateStoreInput) (*domain.Store, error) {
 	id := s.idGen.Generate()
 	store, err := domain.NewStore(id, input.Name, input.Description, input.Address, input.PhoneNumber)
 	if err != nil {
@@ -46,11 +46,11 @@ func (s *Service) Create(ctx context.Context, input CreateStoreInput) (*domain.S
 	return store, nil
 }
 
-func (s *Service) GetByID(ctx context.Context, id string) (*domain.Store, error) {
+func (s *StoreService) GetByID(ctx context.Context, id string) (*domain.Store, error) {
 	return s.repo.FindByID(ctx, id)
 }
 
-func (s *Service) GetAll(ctx context.Context, limit, offset int) ([]*domain.Store, error) {
+func (s *StoreService) GetAll(ctx context.Context, limit, offset int) ([]*domain.Store, error) {
 	if limit <= 0 {
 		limit = 10
 	}
@@ -60,7 +60,7 @@ func (s *Service) GetAll(ctx context.Context, limit, offset int) ([]*domain.Stor
 	return s.repo.FindAll(ctx, limit, offset)
 }
 
-func (s *Service) Update(ctx context.Context, input UpdateStoreInput) (*domain.Store, error) {
+func (s *StoreService) Update(ctx context.Context, input UpdateStoreInput) (*domain.Store, error) {
 	store, err := s.repo.FindByID(ctx, input.ID)
 	if err != nil {
 		return nil, err
@@ -74,6 +74,6 @@ func (s *Service) Update(ctx context.Context, input UpdateStoreInput) (*domain.S
 	return store, nil
 }
 
-func (s *Service) Delete(ctx context.Context, id string) error {
+func (s *StoreService) Delete(ctx context.Context, id string) error {
 	return s.repo.Delete(ctx, id)
 }
