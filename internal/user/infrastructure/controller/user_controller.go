@@ -6,7 +6,6 @@ import (
 
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/application"
-	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure/dto"
 	userDto "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure/dto"
 )
 
@@ -31,7 +30,7 @@ func (h *UserController) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, dto.UserResponse{
+	writeJSON(w, http.StatusOK, userDto.UserResponse{
 		ID:        string(output.ID),
 		FirstName: output.FirstName,
 		LastName:  output.LastName,
@@ -71,7 +70,7 @@ func (h *UserController) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, dto.UserResponse{
+	writeJSON(w, http.StatusOK, userDto.UserResponse{
 		ID:        string(output.ID),
 		FirstName: output.FirstName,
 		LastName:  output.LastName,
