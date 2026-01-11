@@ -1,4 +1,4 @@
-package infrastructure
+package repository
 
 import (
 	"context"
@@ -7,15 +7,15 @@ import (
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
 )
 
-type PostgresRepository struct {
+type StorePostgresRepository struct {
 	db *sql.DB
 }
 
-func NewPostgresRepository(db *sql.DB) *PostgresRepository {
-	return &PostgresRepository{db: db}
+func NewStorePostgresRepository(db *sql.DB) *StorePostgresRepository {
+	return &StorePostgresRepository{db: db}
 }
 
-func (r *PostgresRepository) Save(ctx context.Context, store *domain.Store) error {
+func (r *StorePostgresRepository) Save(ctx context.Context, store *domain.Store) error {
 	query := `
 		INSERT INTO stores (id, name, description, address, phone_number)
 		VALUES ($1, $2, $3, $4, $5)
@@ -30,7 +30,7 @@ func (r *PostgresRepository) Save(ctx context.Context, store *domain.Store) erro
 	return err
 }
 
-func (r *PostgresRepository) FindByID(ctx context.Context, id string) (*domain.Store, error) {
+func (r *StorePostgresRepository) FindByID(ctx context.Context, id string) (*domain.Store, error) {
 	query := `
 		SELECT id, name, description, address, phone_number
 		FROM stores
@@ -40,7 +40,7 @@ func (r *PostgresRepository) FindByID(ctx context.Context, id string) (*domain.S
 	return r.scanStore(row)
 }
 
-func (r *PostgresRepository) FindAll(ctx context.Context, limit, offset int) ([]*domain.Store, error) {
+func (r *StorePostgresRepository) FindAll(ctx context.Context, limit, offset int) ([]*domain.Store, error) {
 	query := `
 		SELECT id, name, description, address, phone_number
 		FROM stores
@@ -64,7 +64,7 @@ func (r *PostgresRepository) FindAll(ctx context.Context, limit, offset int) ([]
 	return stores, rows.Err()
 }
 
-func (r *PostgresRepository) Update(ctx context.Context, store *domain.Store) error {
+func (r *StorePostgresRepository) Update(ctx context.Context, store *domain.Store) error {
 	query := `
 		UPDATE stores
 		SET name = $2, description = $3, address = $4, phone_number = $5
@@ -90,7 +90,7 @@ func (r *PostgresRepository) Update(ctx context.Context, store *domain.Store) er
 	return nil
 }
 
-func (r *PostgresRepository) Delete(ctx context.Context, id string) error {
+func (r *StorePostgresRepository) Delete(ctx context.Context, id string) error {
 	query := `DELETE FROM stores WHERE id = $1`
 	result, err := r.db.ExecContext(ctx, query, string(id))
 	if err != nil {
@@ -106,7 +106,7 @@ func (r *PostgresRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *PostgresRepository) scanStore(row *sql.Row) (*domain.Store, error) {
+func (r *StorePostgresRepository) scanStore(row *sql.Row) (*domain.Store, error) {
 	var id, name, description, address, phoneNumber string
 	if err := row.Scan(&id, &name, &description, &address, &phoneNumber); err != nil {
 		if err == sql.ErrNoRows {
@@ -117,7 +117,7 @@ func (r *PostgresRepository) scanStore(row *sql.Row) (*domain.Store, error) {
 	return domain.NewStore(string(id), name, description, address, phoneNumber)
 }
 
-func (r *PostgresRepository) scanStoreFromRows(rows *sql.Rows) (*domain.Store, error) {
+func (r *StorePostgresRepository) scanStoreFromRows(rows *sql.Rows) (*domain.Store, error) {
 	var id, name, description, address, phoneNumber string
 	if err := rows.Scan(&id, &name, &description, &address, &phoneNumber); err != nil {
 		return nil, err

@@ -13,6 +13,7 @@ import (
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/utils"
 	storedom "github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
 	storeinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure"
+	storeRepository "github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure/repository"
 	userdom "github.com/LautaroBlasco23/lauti-market-backend/internal/user/domain"
 	userinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure"
 )
@@ -36,7 +37,7 @@ func (a *userServiceAdapter) Create(ctx context.Context, firstName, lastName str
 }
 
 type storeServiceAdapter struct {
-	repo *storeinfra.PostgresRepository
+	repo *storeRepository.StorePostgresRepository
 }
 
 func (a *storeServiceAdapter) Create(ctx context.Context, name, description, address, phoneNumber string, id string) error {

@@ -1,4 +1,4 @@
-package infrastructure
+package controller
 
 import (
 	"encoding/json"
@@ -6,40 +6,19 @@ import (
 
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/application"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure/dto"
 )
 
-type Handler struct {
+type StoreController struct {
 	service *application.Service
 }
 
-func NewHandler(service *application.Service) *Handler {
-	return &Handler{service: service}
+func NewStoreController(service *application.Service) *StoreController {
+	return &StoreController{service: service}
 }
 
-type createStoreRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Address     string `json:"address"`
-	PhoneNumber string `json:"phone_number"`
-}
-
-type updateStoreRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Address     string `json:"address"`
-	PhoneNumber string `json:"phone_number"`
-}
-
-type storeResponse struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Address     string `json:"address"`
-	PhoneNumber string `json:"phone_number"`
-}
-
-func toStoreResponse(s *domain.Store) storeResponse {
-	return storeResponse{
+func toStoreResponse(s *domain.Store) dto.StoreResponse {
+	return dto.StoreResponse{
 		ID:          string(s.ID()),
 		Name:        s.Name(),
 		Description: s.Description(),
@@ -48,8 +27,8 @@ func toStoreResponse(s *domain.Store) storeResponse {
 	}
 }
 
-func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	var req createStoreRequest
+func (h *StoreController) Create(w http.ResponseWriter, r *http.Request) {
+	var req dto.CreateStoreRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
@@ -71,7 +50,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(toStoreResponse(store))
 }
 
-func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
+func (h *StoreController) GetByID(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "missing store id", http.StatusBadRequest)
@@ -88,14 +67,14 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(toStoreResponse(store))
 }
 
-func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
+func (h *StoreController) GetAll(w http.ResponseWriter, r *http.Request) {
 	stores, err := h.service.GetAll(r.Context(), 100, 0)
 	if err != nil {
 		h.handleError(w, err)
 		return
 	}
 
-	response := make([]storeResponse, len(stores))
+	response := make([]dto.StoreResponse, len(stores))
 	for i, s := range stores {
 		response[i] = toStoreResponse(s)
 	}
@@ -104,14 +83,14 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+func (h *StoreController) Update(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "missing store id", http.StatusBadRequest)
 		return
 	}
 
-	var req updateStoreRequest
+	var req dto.UpdateStoreRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
@@ -133,7 +112,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(toStoreResponse(store))
 }
 
-func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+func (h *StoreController) Delete(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "missing store id", http.StatusBadRequest)
@@ -148,7 +127,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) handleError(w http.ResponseWriter, err error) {
+func (h *StoreController) handleError(w http.ResponseWriter, err error) {
 	switch err {
 	case domain.ErrStoreNotFound:
 		http.Error(w, err.Error(), http.StatusNotFound)
