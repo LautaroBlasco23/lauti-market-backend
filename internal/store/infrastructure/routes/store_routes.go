@@ -7,7 +7,6 @@ import (
 )
 
 func RegisterRoutes(mux *http.ServeMux, controller *storeController.StoreController) {
-	mux.HandleFunc("POST /stores", controller.Create)
 	mux.HandleFunc("GET /stores", controller.GetAll)
 	mux.HandleFunc("GET /stores/{id}", controller.GetByID)
 	mux.HandleFunc("PUT /stores/{id}", controller.Update)

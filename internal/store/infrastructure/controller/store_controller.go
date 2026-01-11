@@ -10,10 +10,10 @@ import (
 )
 
 type StoreController struct {
-	service *application.Service
+	service *application.StoreService
 }
 
-func NewStoreController(service *application.Service) *StoreController {
+func NewStoreController(service *application.StoreService) *StoreController {
 	return &StoreController{service: service}
 }
 
@@ -25,29 +25,6 @@ func toStoreResponse(s *domain.Store) dto.StoreResponse {
 		Address:     s.Address(),
 		PhoneNumber: s.PhoneNumber(),
 	}
-}
-
-func (h *StoreController) Create(w http.ResponseWriter, r *http.Request) {
-	var req dto.CreateStoreRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	store, err := h.service.Create(r.Context(), application.CreateStoreInput{
-		Name:        req.Name,
-		Description: req.Description,
-		Address:     req.Address,
-		PhoneNumber: req.PhoneNumber,
-	})
-	if err != nil {
-		h.handleError(w, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(toStoreResponse(store))
 }
 
 func (h *StoreController) GetByID(w http.ResponseWriter, r *http.Request) {
