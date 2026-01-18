@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
@@ -116,11 +117,10 @@ func (h *StoreController) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StoreController) handleError(w http.ResponseWriter, err error) {
-	switch err {
-	case domain.ErrStoreNotFound:
+	switch {
+	case errors.Is(err, domain.ErrStoreNotFound):
 		http.Error(w, err.Error(), http.StatusNotFound)
-	case domain.ErrInvalidName, domain.ErrInvalidDescription,
-		domain.ErrInvalidAddress, domain.ErrInvalidPhoneNumber:
+	case errors.Is(err, domain.ErrInvalidName), errors.Is(err, domain.ErrInvalidDescription), errors.Is(err, domain.ErrInvalidAddress), errors.Is(err, domain.ErrInvalidPhoneNumber):
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	default:
 		http.Error(w, "internal server error", http.StatusInternalServerError)
