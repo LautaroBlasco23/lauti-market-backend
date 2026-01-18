@@ -23,6 +23,10 @@
     {
       "key": "accountId",
       "value": ""
+    },
+    {
+      "key": "productId",
+      "value": ""
     }
   ],
   "item": [
@@ -519,6 +523,240 @@
       ]
     },
     {
+      "name": "Products",
+      "item": [
+        {
+          "name": "12. Create Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('productId', response.id);",
+                  "    pm.test('Product created successfully', function() {",
+                  "        pm.expect(response.id).to.exist;",
+                  "        pm.expect(response.store_id).to.equal(pm.collectionVariables.get('storeId'));",
+                  "        pm.expect(response.name).to.equal('Wireless Mouse');",
+                  "        pm.expect(response.stock).to.equal(50);",
+                  "        pm.expect(response.price).to.equal(29.99);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Wireless Mouse\",\n    \"description\": \"Ergonomic wireless mouse with long battery life\",\n    \"stock\": 50,\n    \"price\": 29.99,\n    \"image_url\": \"https://example.com/images/mouse.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/stores/{{storeId}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stores",
+                "{{storeId}}",
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "13. Get All Products by Store",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.test('Products retrieved successfully', function() {",
+                  "        pm.expect(response).to.be.an('array');",
+                  "        if (response.length > 0) {",
+                  "            pm.expect(response[0].id).to.exist;",
+                  "            pm.expect(response[0].store_id).to.exist;",
+                  "            pm.expect(response[0].name).to.exist;",
+                  "            pm.expect(response[0].price).to.exist;",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stores/{{storeId}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stores",
+                "{{storeId}}",
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "14. Get Product by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.test('Product retrieved successfully', function() {",
+                  "        pm.expect(response.id).to.exist;",
+                  "        pm.expect(response.store_id).to.exist;",
+                  "        pm.expect(response.name).to.exist;",
+                  "        pm.expect(response.description).to.exist;",
+                  "        pm.expect(response.stock).to.be.a('number');",
+                  "        pm.expect(response.price).to.be.a('number');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stores/{{storeId}}/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stores",
+                "{{storeId}}",
+                "products",
+                "{{productId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "15. Update Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.test('Product updated successfully', function() {",
+                  "        pm.expect(response.name).to.equal('Updated Wireless Mouse');",
+                  "        pm.expect(response.stock).to.equal(100);",
+                  "        pm.expect(response.price).to.equal(24.99);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Wireless Mouse\",\n    \"description\": \"Updated ergonomic wireless mouse with extended battery\",\n    \"stock\": 100,\n    \"price\": 24.99,\n    \"image_url\": \"https://example.com/images/mouse-v2.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/stores/{{storeId}}/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stores",
+                "{{storeId}}",
+                "products",
+                "{{productId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "16. Delete Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Product deleted successfully', function() {",
+                  "    pm.expect(pm.response.code).to.equal(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stores/{{storeId}}/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stores",
+                "{{storeId}}",
+                "products",
+                "{{productId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Error Cases",
       "item": [
         {
@@ -698,6 +936,123 @@
               "path": [
                 "stores",
                 "{{storeId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Product - Invalid Store",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Test Product\",\n    \"description\": \"Test description for the product\",\n    \"stock\": 10,\n    \"price\": 19.99\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/stores/non-existent-id/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stores",
+                "non-existent-id",
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Product - Negative Stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Test Product\",\n    \"description\": \"Test description for the product\",\n    \"stock\": -5,\n    \"price\": 19.99\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/stores/{{storeId}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stores",
+                "{{storeId}}",
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Product - Zero Price",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Test Product\",\n    \"description\": \"Test description for the product\",\n    \"stock\": 10,\n    \"price\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/stores/{{storeId}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stores",
+                "{{storeId}}",
+                "products"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product - Not Found",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/stores/{{storeId}}/products/non-existent-id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "stores",
+                "{{storeId}}",
+                "products",
+                "non-existent-id"
               ]
             }
           }
