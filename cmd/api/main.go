@@ -15,6 +15,7 @@ import (
 	apiInfrastructure "github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	authinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure"
 	authUtils "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/utils"
+	productinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/product/infrastructure"
 	storeinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure"
 	userinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure"
 )
@@ -37,18 +38,26 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("connecting to database: %w", err)
 	}
-	defer postgres.Close()
+	defer func() {
+		if err := postgres.Close(); err != nil {
+			log.Printf("error closing database connection: %v", err)
+		}
+	}()
 
 	db := postgres.DB()
+
 	mux := http.NewServeMux()
 	uuidGen := apiInfrastructure.NewUUIDGenerator()
 
 	userModule := userinfra.Wire(mux, db, uuidGen)
 	storeModule := storeinfra.Wire(mux, db, uuidGen)
+
 	authinfra.Wire(mux, db, uuidGen, userModule, storeModule, authUtils.JwtConfig{
 		JWTSecret:     getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
 		JWTExpiration: 24 * time.Hour,
 	})
+
+	productinfra.Wire(mux, db, uuidGen, storeModule.Repository)
 
 	server := &http.Server{
 		Addr:         getEnv("PORT", ":8000"),
