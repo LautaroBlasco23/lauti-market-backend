@@ -1,0 +1,121 @@
+{
+  "info": {
+    "name": "Lauti Market API - Auth",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" },
+    { "key": "accountId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Register User",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    const response = pm.response.json();",
+              "    pm.collectionVariables.set('accountId', response.account_id);",
+              "    pm.test('User registered successfully', function() {",
+              "        pm.expect(response.email).to.exist;",
+              "        pm.expect(response.auth_id).to.exist;",
+              "        pm.expect(response.account_id).to.exist;",
+              "        pm.expect(response.account_type).to.equal('user');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"password123\",\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/register/user",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "register", "user"]
+        }
+      }
+    },
+    {
+      "name": "2. Register Store",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    const response = pm.response.json();",
+              "    pm.collectionVariables.set('storeId', response.account_id);",
+              "    pm.test('Store registered successfully', function() {",
+              "        pm.expect(response.email).to.exist;",
+              "        pm.expect(response.auth_id).to.exist;",
+              "        pm.expect(response.account_id).to.exist;",
+              "        pm.expect(response.account_type).to.equal('store');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"store@example.com\",\n    \"password\": \"password123\",\n    \"name\": \"Tech Store\",\n    \"description\": \"Your one-stop shop for tech gadgets\",\n    \"address\": \"123 Main St, City, Country\",\n    \"phone_number\": \"+1234567890\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/register/store",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "register", "store"]
+        }
+      }
+    },
+    {
+      "name": "3. Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const response = pm.response.json();",
+              "    pm.collectionVariables.set('token', response.token);",
+              "    pm.collectionVariables.set('accountId', response.account_id);",
+              "    pm.test('Login successful', function() {",
+              "        pm.expect(response.token).to.exist;",
+              "        pm.expect(response.account_id).to.exist;",
+              "        pm.expect(response.account_type).to.exist;",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"password123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["auth", "login"]
+        }
+      }
+    }
+  ]
+}
