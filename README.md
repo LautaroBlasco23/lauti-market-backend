@@ -17,24 +17,6 @@ internal/
 
 Each module exposes a `Wire()` function in `infrastructure/wiring.go` that initializes all components and registers routes.
 
-## Entities
-
-| Entity | Description |
-|--------|-------------|
-| **auth** | Email, password, user reference. Handles registration and login. |
-| **user** | First name, last name. Basic profile data. |
-
-## Endpoints
-
-```
-POST /auth/register    # Create user + auth
-POST /auth/login       # Returns JWT token
-
-GET    /users/{id}     # Get user
-PUT    /users/{id}     # Update user
-DELETE /users/{id}     # Delete user
-```
-
 ## Dependencies
 
 - [golang-jwt/jwt](https://github.com/golang-jwt/jwt) - JWT tokens
@@ -45,6 +27,15 @@ DELETE /users/{id}     # Delete user
 
 ```bash
 go mod tidy
+make db-up
+make dev
+```
+
+or
+
+```bash
+make install-tools
+make db-up
 make dev
 ```
 
