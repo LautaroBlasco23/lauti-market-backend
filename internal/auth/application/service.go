@@ -108,7 +108,7 @@ func (s *AuthService) RegisterStore(ctx context.Context, input RegisterStoreInpu
 func (s *AuthService) checkEmailAvailable(ctx context.Context, email string) error {
 	existing, err := s.repo.FindByEmail(ctx, email)
 	if err == nil && existing != nil {
-		return domain.ErrEmailExists
+		return apiDomain.ErrEmailExists
 	}
 	return nil
 }
@@ -156,11 +156,11 @@ type LoginOutput struct {
 func (s *AuthService) Login(ctx context.Context, input LoginInput) (*LoginOutput, error) {
 	auth, err := s.repo.FindByEmail(ctx, input.Email)
 	if err != nil {
-		return nil, domain.ErrInvalidCredentials
+		return nil, apiDomain.ErrInvalidCredentials
 	}
 
 	if err := s.hasher.Compare(auth.Password(), input.Password); err != nil {
-		return nil, domain.ErrInvalidCredentials
+		return nil, apiDomain.ErrInvalidCredentials
 	}
 
 	token, err := s.tokenGen.Generate(auth.ID(), auth.AccountType(), auth.AccountID())

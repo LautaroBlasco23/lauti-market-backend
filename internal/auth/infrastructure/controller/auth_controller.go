@@ -7,7 +7,7 @@ import (
 
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/application"
-	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/domain"
+	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/dto"
 )
 
@@ -133,11 +133,11 @@ func (h *Controller) Login(w http.ResponseWriter, r *http.Request) {
 
 func (h *Controller) handleError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, domain.ErrEmailExists):
+	case errors.Is(err, apiDomain.ErrEmailExists):
 		http.Error(w, err.Error(), http.StatusConflict)
-	case errors.Is(err, domain.ErrInvalidCredentials):
+	case errors.Is(err, apiDomain.ErrInvalidCredentials):
 		http.Error(w, err.Error(), http.StatusUnauthorized)
-	case errors.Is(err, domain.ErrInvalidEmail), errors.Is(err, domain.ErrInvalidPassword), errors.Is(err, domain.ErrInvalidAccountID), errors.Is(err, domain.ErrInvalidAccountType):
+	case errors.Is(err, apiDomain.ErrInvalidEmail), errors.Is(err, apiDomain.ErrInvalidPassword), errors.Is(err, apiDomain.ErrInvalidAccountID), errors.Is(err, apiDomain.ErrInvalidAccountType):
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	default:
 		http.Error(w, "internal server error", http.StatusInternalServerError)

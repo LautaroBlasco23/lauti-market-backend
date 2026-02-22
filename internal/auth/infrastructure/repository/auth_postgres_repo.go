@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/domain"
+	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	"github.com/lib/pq"
 )
 
@@ -32,7 +33,7 @@ func (r *AuthPostgresRepository) Save(ctx context.Context, a *domain.Auth) error
 	if err != nil {
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			return domain.ErrEmailExists
+			return apiDomain.ErrEmailExists
 		}
 		return err
 	}
@@ -73,7 +74,7 @@ func (r *AuthPostgresRepository) Update(ctx context.Context, a *domain.Auth) err
 	if err != nil {
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			return domain.ErrEmailExists
+			return apiDomain.ErrEmailExists
 		}
 		return err
 	}
@@ -82,7 +83,7 @@ func (r *AuthPostgresRepository) Update(ctx context.Context, a *domain.Auth) err
 		return err
 	}
 	if rows == 0 {
-		return domain.ErrAuthNotFound
+		return apiDomain.ErrAuthNotFound
 	}
 	return nil
 }
@@ -98,7 +99,7 @@ func (r *AuthPostgresRepository) Delete(ctx context.Context, id string) error {
 		return err
 	}
 	if rows == 0 {
-		return domain.ErrAuthNotFound
+		return apiDomain.ErrAuthNotFound
 	}
 	return nil
 }
@@ -107,7 +108,7 @@ func (r *AuthPostgresRepository) scanAuth(row *sql.Row) (*domain.Auth, error) {
 	var id, email, password, accountID, accountType string
 	if err := row.Scan(&id, &email, &password, &accountID, &accountType); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, domain.ErrAuthNotFound
+			return nil, apiDomain.ErrAuthNotFound
 		}
 		return nil, err
 	}
