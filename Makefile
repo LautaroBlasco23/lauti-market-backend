@@ -1,4 +1,4 @@
-.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-security wait-db
+.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-security wait-db start
 .DEFAULT_GOAL := help
 
 help:
@@ -7,6 +7,7 @@ help:
 	@echo "    install-tools      - Install Go tools (gofumpt, golangci-lint, air, gotestsum)"
 	@echo "    code-check         - Format and lint code"
 	@echo "    dev                - Start application with databases"
+	@echo "    start              - Interactive start (dev/docker/prod)"
 	@echo "    test               - Run tests"
 	@echo "    test-security      - Start docker containers and run security tests agains the api"
 	@echo ""
@@ -39,6 +40,38 @@ wait-db:
 
 dev: db-up wait-db
 	ENV_FILE=.env air -c .air.toml
+
+start:
+	@echo ""
+	@echo "🚀 Select how to start the project:"
+	@echo "  1) Dev mode      - Go + air, local dbs, uses .env"
+	@echo "  2) Docker (test) - Full stack in Docker, uses .env.test"
+	@echo "  3) Prod mode     - Optimized Docker stack, uses .env.prod"
+	@echo ""
+	@read -p "Enter choice [1-3]: " choice; \
+	case $$choice in \
+		1) \
+			echo ""; \
+			echo "▶ Starting in dev mode with air (logs below)..."; \
+			$(MAKE) dev || (echo "Dev failed, installing tools and retrying..."; $(MAKE) install-tools; $(MAKE) dev); \
+			;; \
+		2) \
+			echo ""; \
+			echo "▶ Starting Docker stack for testing (showing logs)..."; \
+			[ -f .env.test ] || (echo ".env.test not found"; exit 1); \
+			docker compose --env-file .env.test up; \
+			;; \
+		3) \
+			echo ""; \
+			echo "▶ Starting in production mode (optimized, showing logs)..."; \
+			[ -f .env.prod ] || (echo ".env.prod not found"; exit 1); \
+			docker compose --env-file .env.prod up; \
+			;; \
+		*) \
+			echo "Invalid choice. Aborting."; \
+			exit 1; \
+			;; \
+	esac
 
 docker-up:
 	@[ -f .env ] || (echo ".env not found"; exit 1)
