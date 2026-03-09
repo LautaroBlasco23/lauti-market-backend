@@ -61,7 +61,7 @@ func run() error {
 
 	server := &http.Server{
 		Addr:         getEnv("PORT", ":8000"),
-		Handler:      mux,
+		Handler:      apiInfrastructure.CORSMiddleware(mux),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
