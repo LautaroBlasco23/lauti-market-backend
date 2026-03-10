@@ -12,4 +12,5 @@ func RegisterRoutes(mux *http.ServeMux, controller *productController.ProductCon
 	mux.HandleFunc("GET /stores/{store_id}/products/{id}", controller.GetByID)
 	mux.HandleFunc("PUT /stores/{store_id}/products/{id}", controller.Update)
 	mux.HandleFunc("DELETE /stores/{store_id}/products/{id}", controller.Delete)
+	mux.HandleFunc("POST /stores/{store_id}/products/{id}/image", controller.UploadImage)
 }
