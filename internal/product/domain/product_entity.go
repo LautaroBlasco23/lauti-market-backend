@@ -9,12 +9,13 @@ type Product struct {
 	storeID     string
 	name        string
 	description string
+	category    string
 	stock       int
 	price       float64
 	imageURL    *string
 }
 
-func NewProduct(id, storeID, name, description string, stock int, price float64, imageURL *string) (*Product, error) {
+func NewProduct(id, storeID, name, description, category string, stock int, price float64, imageURL *string) (*Product, error) {
 	if storeID == "" {
 		return nil, apiDomain.ErrInvalidStoreID
 	}
@@ -23,6 +24,9 @@ func NewProduct(id, storeID, name, description string, stock int, price float64,
 	}
 	if description == "" {
 		return nil, apiDomain.ErrInvalidProductDescription
+	}
+	if category == "" {
+		return nil, apiDomain.ErrInvalidCategory
 	}
 	if stock < 0 {
 		return nil, apiDomain.ErrInvalidStock
@@ -36,6 +40,7 @@ func NewProduct(id, storeID, name, description string, stock int, price float64,
 		storeID:     storeID,
 		name:        name,
 		description: description,
+		category:    category,
 		stock:       stock,
 		price:       price,
 		imageURL:    imageURL,
@@ -46,16 +51,20 @@ func (p *Product) ID() string          { return p.id }
 func (p *Product) StoreID() string     { return p.storeID }
 func (p *Product) Name() string        { return p.name }
 func (p *Product) Description() string { return p.description }
+func (p *Product) Category() string    { return p.category }
 func (p *Product) Stock() int          { return p.stock }
 func (p *Product) Price() float64      { return p.price }
 func (p *Product) ImageURL() *string   { return p.imageURL }
 
-func (p *Product) Update(name, description string, stock int, price float64, imageURL *string) error {
+func (p *Product) Update(name, description, category string, stock int, price float64, imageURL *string) error {
 	if name == "" {
 		return apiDomain.ErrInvalidProductName
 	}
 	if description == "" {
 		return apiDomain.ErrInvalidProductDescription
+	}
+	if category == "" {
+		return apiDomain.ErrInvalidCategory
 	}
 	if stock < 0 {
 		return apiDomain.ErrInvalidStock
@@ -66,6 +75,7 @@ func (p *Product) Update(name, description string, stock int, price float64, ima
 
 	p.name = name
 	p.description = description
+	p.category = category
 	p.stock = stock
 	p.price = price
 	p.imageURL = imageURL

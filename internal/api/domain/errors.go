@@ -26,5 +26,6 @@ var (
 	ErrInvalidStock              = errors.New("stock cannot be negative")
 	ErrInvalidPrice              = errors.New("price must be greater than zero")
 	ErrInvalidStoreID            = errors.New("store id cannot be empty")
+	ErrInvalidCategory           = errors.New("category cannot be empty")
 	ErrProductNotFound           = errors.New("product not found")
 )
