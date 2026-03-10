@@ -45,11 +45,31 @@ services:
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/lauti_market?sslmode=disable
       - REDIS_URL=redis:6379
       - PORT=8080
+      - IMAGE_STORE_ADDR=image-storage:50051
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      image-storage:
+        condition: service_started
+    networks:
+      - lauti-market-network
+    restart: unless-stopped
+
+  image-storage:
+    build:
+      context: ../../image-storage
+      dockerfile: Dockerfile
+    container_name: lauti-market-image-storage
+    ports:
+      - "50051:50051"
+      - "8087:8087"
+    environment:
+      - STORAGE_BACKEND=local
+      - BASE_URL=http://localhost:8087
+    volumes:
+      - image_storage_data:/app/images
     networks:
       - lauti-market-network
     restart: unless-stopped
@@ -57,6 +77,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  image_storage_data:
 
 networks:
   lauti-market-network:

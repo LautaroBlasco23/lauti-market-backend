@@ -2,23 +2,27 @@ package application
 
 import (
 	"context"
+	"fmt"
 
 	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
+	imageDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/image/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/product/domain"
 	storeDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
 )
 
 type ProductService struct {
-	repo      domain.Repository
-	storeRepo storeDomain.Repository
-	idGen     apiDomain.IDGenerator
+	repo        domain.Repository
+	storeRepo   storeDomain.Repository
+	idGen       apiDomain.IDGenerator
+	imageClient imageDomain.ImageClient
 }
 
-func NewService(repo domain.Repository, storeRepo storeDomain.Repository, idGen apiDomain.IDGenerator) *ProductService {
+func NewService(repo domain.Repository, storeRepo storeDomain.Repository, idGen apiDomain.IDGenerator, imageClient imageDomain.ImageClient) *ProductService {
 	return &ProductService{
-		repo:      repo,
-		storeRepo: storeRepo,
-		idGen:     idGen,
+		repo:        repo,
+		storeRepo:   storeRepo,
+		idGen:       idGen,
+		imageClient: imageClient,
 	}
 }
 
@@ -96,4 +100,33 @@ func (s *ProductService) Update(ctx context.Context, input UpdateProductInput) (
 
 func (s *ProductService) Delete(ctx context.Context, id string) error {
 	return s.repo.Delete(ctx, id)
+}
+
+type UploadProductImageInput struct {
+	ProductID   string
+	StoreID     string
+	Filename    string
+	ContentType string
+	Data        []byte
+}
+
+func (s *ProductService) UploadImage(ctx context.Context, input UploadProductImageInput) (*domain.Product, error) {
+	product, err := s.repo.FindByID(ctx, input.ProductID)
+	if err != nil {
+		return nil, err
+	}
+	result, err := s.imageClient.UploadImage(ctx, imageDomain.UploadImageInput{
+		UserID: input.ProductID, Filename: input.Filename,
+		ContentType: input.ContentType, Data: input.Data,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("uploading image: %w", err)
+	}
+	if err := product.Update(product.Name(), product.Description(), product.Stock(), product.Price(), &result.URL); err != nil {
+		return nil, err
+	}
+	if err := s.repo.Update(ctx, product); err != nil {
+		return nil, err
+	}
+	return product, nil
 }

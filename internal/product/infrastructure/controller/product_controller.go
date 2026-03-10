@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 
 	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
@@ -166,6 +167,44 @@ func (c *ProductController) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (c *ProductController) UploadImage(w http.ResponseWriter, r *http.Request) {
+	storeID := r.PathValue("store_id")
+	productID := r.PathValue("id")
+	if storeID == "" || productID == "" {
+		http.Error(w, "missing store_id or product id", http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		http.Error(w, "image too large or invalid form", http.StatusBadRequest)
+		return
+	}
+	file, header, err := r.FormFile("image")
+	if err != nil {
+		http.Error(w, "missing image field", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+	data, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, "failed to read image", http.StatusInternalServerError)
+		return
+	}
+	contentType := header.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	product, err := c.service.UploadImage(r.Context(), application.UploadProductImageInput{
+		ProductID: productID, StoreID: storeID,
+		Filename: header.Filename, ContentType: contentType, Data: data,
+	})
+	if err != nil {
+		c.handleError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(toProductResponse(product))
 }
 
 func (c *ProductController) handleError(w http.ResponseWriter, err error) {
