@@ -48,8 +48,24 @@ fi
 IMAGE_COUNT=${#IMAGES[@]}
 if [[ $IMAGE_COUNT -gt 0 ]]; then
   echo "📷 Found $IMAGE_COUNT image(s) in $IMAGES_DIR"
+elif [[ -n "${UNSPLASH_ACCESS_KEY:-}" ]]; then
+  echo "📷 No images found — downloading via download-images.go..."
+  if command -v go &>/dev/null; then
+    if go run "$SCRIPT_DIR/download-images.go" --count=20 --query=product; then
+      IMAGES=()
+      while IFS= read -r -d '' f; do
+        IMAGES+=("$f")
+      done < <(find "$IMAGES_DIR" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.webp" \) -print0 2>/dev/null)
+      IMAGE_COUNT=${#IMAGES[@]}
+      echo "📷 Downloaded and loaded $IMAGE_COUNT image(s)"
+    else
+      echo "⚠️  download-images.go failed — products will be created without images"
+    fi
+  else
+    echo "⚠️  'go' not found — products will be created without images"
+  fi
 else
-  echo "📷 No images found — products will be created without images"
+  echo "📷 No images found — set UNSPLASH_ACCESS_KEY to auto-download, or run 'make download-images' first"
 fi
 
 # ─── Fake Data ───────────────────────────────────────────────────────────────
