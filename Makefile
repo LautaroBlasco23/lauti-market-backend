@@ -1,4 +1,4 @@
-.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-security wait-db start
+.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-security wait-db start fake-data
 .DEFAULT_GOAL := help
 
 help:
@@ -15,6 +15,10 @@ help:
 	@echo "    docker-up          - Start all services"
 	@echo "    docker-down        - Stop services"
 	@echo "    docker-build       - Build API image"
+	@echo ""
+	@echo ""
+	@echo "  📦 Data:"
+	@echo "    fake-data          - Create fake stores and products (ARGS='--products=20')"
 	@echo ""
 	@echo "  🗄️  Database:"
 	@echo "    db-up              - Start databases"
@@ -95,6 +99,10 @@ db-remove:
 
 test:
 	gotestsum --format=short-verbose
+
+fake-data:
+	@chmod +x scripts/fake-data-creator.sh
+	./scripts/fake-data-creator.sh $(ARGS)
 
 test-security:
 	@[ -f .env ] || (echo ".env not found"; exit 1)

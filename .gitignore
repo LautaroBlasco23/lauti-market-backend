@@ -45,3 +45,7 @@ tmp/
 
 # Documentation
 .docs/
+
+# Fake data images (keep directory, ignore contents)
+scripts/fake-data-images/*
+!scripts/fake-data-images/.gitkeep
