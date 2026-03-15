@@ -100,9 +100,22 @@ func (c *OrderController) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims, ok := apiInfra.GetClaims(r.Context())
+	if !ok {
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+
 	order, err := c.service.GetByID(r.Context(), id)
 	if err != nil {
 		c.handleError(w, err)
+		return
+	}
+
+	isOwner := (string(claims.AccountType) == "user" && claims.AccountID == order.UserID()) ||
+		(string(claims.AccountType) == "store" && claims.AccountID == order.StoreID())
+	if !isOwner {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
 		return
 	}
 
@@ -114,6 +127,16 @@ func (c *OrderController) GetByUserID(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("user_id")
 	if userID == "" {
 		http.Error(w, "missing user id", http.StatusBadRequest)
+		return
+	}
+
+	claims, ok := apiInfra.GetClaims(r.Context())
+	if !ok {
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "user" || claims.AccountID != userID {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
 		return
 	}
 
@@ -137,6 +160,16 @@ func (c *OrderController) GetByStoreID(w http.ResponseWriter, r *http.Request) {
 	storeID := r.PathValue("store_id")
 	if storeID == "" {
 		http.Error(w, "missing store id", http.StatusBadRequest)
+		return
+	}
+
+	claims, ok := apiInfra.GetClaims(r.Context())
+	if !ok {
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" || claims.AccountID != storeID {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
 		return
 	}
 

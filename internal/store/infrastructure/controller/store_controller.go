@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/application"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
@@ -69,6 +70,20 @@ func (h *StoreController) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+	if claims.AccountID != id {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+
 	var req dto.UpdateStoreRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -105,6 +120,20 @@ func (h *StoreController) Delete(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "missing store id", http.StatusBadRequest)
+		return
+	}
+
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+	if claims.AccountID != id {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
 		return
 	}
 

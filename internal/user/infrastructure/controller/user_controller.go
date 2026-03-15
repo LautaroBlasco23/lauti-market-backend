@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/application"
 	userDto "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure/dto"
@@ -44,6 +45,20 @@ func (h *UserController) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, apiDomain.ErrUnauthorized.Error())
+		return
+	}
+	if string(claims.AccountType) != "user" {
+		writeError(w, http.StatusForbidden, apiDomain.ErrForbidden.Error())
+		return
+	}
+	if claims.AccountID != id {
+		writeError(w, http.StatusForbidden, apiDomain.ErrForbidden.Error())
+		return
+	}
+
 	var req userDto.UpdateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -81,6 +96,20 @@ func (h *UserController) Delete(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		writeError(w, http.StatusBadRequest, "missing user id")
+		return
+	}
+
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, apiDomain.ErrUnauthorized.Error())
+		return
+	}
+	if string(claims.AccountType) != "user" {
+		writeError(w, http.StatusForbidden, apiDomain.ErrForbidden.Error())
+		return
+	}
+	if claims.AccountID != id {
+		writeError(w, http.StatusForbidden, apiDomain.ErrForbidden.Error())
 		return
 	}
 

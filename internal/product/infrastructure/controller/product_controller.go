@@ -43,6 +43,20 @@ func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+	if claims.AccountID != storeID {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		http.Error(w, "invalid form", http.StatusBadRequest)
 		return
@@ -199,9 +213,24 @@ func (c *ProductController) GetByStoreID(w http.ResponseWriter, r *http.Request)
 }
 
 func (c *ProductController) Update(w http.ResponseWriter, r *http.Request) {
+	storeID := r.PathValue("store_id")
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "missing product id", http.StatusBadRequest)
+		return
+	}
+
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+	if claims.AccountID != storeID {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
 		return
 	}
 
@@ -240,9 +269,24 @@ func (c *ProductController) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *ProductController) Delete(w http.ResponseWriter, r *http.Request) {
+	storeID := r.PathValue("store_id")
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "missing product id", http.StatusBadRequest)
+		return
+	}
+
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+	if claims.AccountID != storeID {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
 		return
 	}
 
@@ -261,6 +305,21 @@ func (c *ProductController) UploadImage(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "missing store_id or product id", http.StatusBadRequest)
 		return
 	}
+
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+	if claims.AccountID != storeID {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		http.Error(w, "image too large or invalid form", http.StatusBadRequest)
 		return

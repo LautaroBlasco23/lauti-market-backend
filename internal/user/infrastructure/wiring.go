@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
+	apiInfra "github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/application"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure/controller"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure/repository"
@@ -17,12 +18,12 @@ type UserModule struct {
 	Controller *controller.UserController
 }
 
-func Wire(mux *http.ServeMux, db *sql.DB, idGen apiDomain.IDGenerator) *UserModule {
+func Wire(mux *http.ServeMux, db *sql.DB, idGen apiDomain.IDGenerator, authMw *apiInfra.AuthMiddleware) *UserModule {
 	repo := repository.NewUserPostgresRepository(db)
 	service := application.NewService(repo, idGen)
 	userController := controller.NewUserController(service)
 
-	routes.RegisterUserRoutes(mux, userController)
+	routes.RegisterUserRoutes(mux, userController, authMw)
 
 	return &UserModule{
 		Repository: repo,

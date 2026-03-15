@@ -53,8 +53,11 @@ func run() error {
 
 	jwtSecret := getEnv("JWT_SECRET", "your-secret-key-change-in-production")
 
-	userModule := userinfra.Wire(mux, db, uuidGen)
-	storeModule := storeinfra.Wire(mux, db, uuidGen)
+	jwtGen := authUtils.NewJWTGenerator(jwtSecret, 24*time.Hour)
+	authMw := apiInfrastructure.NewAuthMiddleware(jwtGen)
+
+	userModule := userinfra.Wire(mux, db, uuidGen, authMw)
+	storeModule := storeinfra.Wire(mux, db, uuidGen, authMw)
 
 	authinfra.Wire(mux, db, uuidGen, userModule, storeModule, authUtils.JwtConfig{
 		JWTSecret:     jwtSecret,
@@ -67,10 +70,7 @@ func run() error {
 	}
 	defer imageModule.Close()
 
-	productModule := productinfra.Wire(mux, db, uuidGen, storeModule.Repository, imageModule.Client) 
-
-	jwtGen := authUtils.NewJWTGenerator(jwtSecret, 24*time.Hour)
-	authMw := apiInfrastructure.NewAuthMiddleware(jwtGen)
+	productModule := productinfra.Wire(mux, db, uuidGen, storeModule.Repository, imageModule.Client, authMw)
 	orderinfra.Wire(mux, db, uuidGen, productModule.Repository, authMw)
 
 	server := &http.Server{
