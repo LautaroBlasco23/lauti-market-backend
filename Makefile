@@ -1,4 +1,4 @@
-.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-security wait-db start fake-data
+.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-security wait-db start fake-data download-images
 .DEFAULT_GOAL := help
 
 help:
@@ -19,6 +19,7 @@ help:
 	@echo ""
 	@echo "  📦 Data:"
 	@echo "    fake-data          - Create fake stores and products (ARGS='--products=20')"
+	@echo "    download-images    - Download random product images from Unsplash"
 	@echo ""
 	@echo "  🗄️  Database:"
 	@echo "    db-up              - Start databases"
@@ -103,6 +104,10 @@ test:
 fake-data:
 	@chmod +x scripts/fake-data-creator.sh
 	./scripts/fake-data-creator.sh $(ARGS)
+
+download-images:
+	@[ -f .env ] || (echo ".env not found"; exit 1)
+	set -a && . ./.env && set +a && go run scripts/download-images.go $(ARGS)
 
 test-security:
 	@[ -f .env ] || (echo ".env not found"; exit 1)
