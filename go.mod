@@ -2,13 +2,11 @@ module github.com/LautaroBlasco23/lauti-market-backend
 
 go 1.25
 
-replace github.com/lautaroblasco23/imagestore => ../../image-storage
-
 require (
 	github.com/go-playground/validator/v10 v10.30.1
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
-	github.com/lautaroblasco23/imagestore v0.0.0
+	github.com/lautaroblasco23/imagestore v0.0.0-20260315194049-c50b999bc4bd
 	github.com/lib/pq v1.10.9
 	golang.org/x/crypto v0.46.0
 	google.golang.org/grpc v1.76.0
