@@ -3,7 +3,9 @@ package controller
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"strconv"
 
 	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
@@ -27,6 +29,7 @@ func toProductResponse(p *domain.Product) dto.ProductResponse {
 		StoreID:     p.StoreID(),
 		Name:        p.Name(),
 		Description: p.Description(),
+		Category:    p.Category(),
 		Stock:       p.Stock(),
 		Price:       p.Price(),
 		ImageURL:    p.ImageURL(),
@@ -40,10 +43,28 @@ func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.CreateProductRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
 		return
+	}
+
+	stock, err := strconv.Atoi(r.FormValue("stock"))
+	if err != nil {
+		http.Error(w, "invalid stock value", http.StatusBadRequest)
+		return
+	}
+	price, err := strconv.ParseFloat(r.FormValue("price"), 64)
+	if err != nil {
+		http.Error(w, "invalid price value", http.StatusBadRequest)
+		return
+	}
+
+	req := dto.CreateProductRequest{
+		Name:        r.FormValue("name"),
+		Description: r.FormValue("description"),
+		Category:    r.FormValue("category"),
+		Stock:       stock,
+		Price:       price,
 	}
 
 	if err := infrastructure.Validate(req); err != nil {
@@ -56,14 +77,33 @@ func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	product, err := c.service.Create(r.Context(), application.CreateProductInput{
+	input := application.CreateProductInput{
 		StoreID:     storeID,
 		Name:        req.Name,
 		Description: req.Description,
+		Category:    req.Category,
 		Stock:       req.Stock,
 		Price:       req.Price,
-		ImageURL:    req.ImageURL,
-	})
+	}
+
+	file, header, err := r.FormFile("image")
+	if err == nil {
+		defer file.Close()
+		data, err := io.ReadAll(file)
+		if err != nil {
+			http.Error(w, "failed to read image", http.StatusInternalServerError)
+			return
+		}
+		contentType := header.Header.Get("Content-Type")
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+		input.ImageData = data
+		input.ImageFilename = header.Filename
+		input.ImageContentType = contentType
+	}
+
+	product, err := c.service.Create(r.Context(), input)
 	if err != nil {
 		c.handleError(w, err)
 		return
@@ -89,6 +129,51 @@ func (c *ProductController) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(toProductResponse(product))
+}
+
+func (c *ProductController) GetAll(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+
+	limit := 10
+	offset := 0
+
+	if v := q.Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			limit = n
+		}
+	}
+	if v := q.Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+
+	var category *string
+	if v := q.Get("category"); v != "" {
+		category = &v
+	}
+
+	products, err := c.service.GetAll(r.Context(), application.GetAllProductsInput{
+		Limit:    limit,
+		Offset:   offset,
+		Category: category,
+	})
+	if err != nil {
+		c.handleError(w, err)
+		return
+	}
+
+	responses := make([]dto.ProductResponse, len(products))
+	for i, p := range products {
+		responses[i] = toProductResponse(p)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(dto.ProductListResponse{
+		Products: responses,
+		Limit:    limit,
+		Offset:   offset,
+	})
 }
 
 func (c *ProductController) GetByStoreID(w http.ResponseWriter, r *http.Request) {
@@ -140,6 +225,7 @@ func (c *ProductController) Update(w http.ResponseWriter, r *http.Request) {
 		ID:          id,
 		Name:        req.Name,
 		Description: req.Description,
+		Category:    req.Category,
 		Stock:       req.Stock,
 		Price:       req.Price,
 		ImageURL:    req.ImageURL,
@@ -168,13 +254,51 @@ func (c *ProductController) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (c *ProductController) UploadImage(w http.ResponseWriter, r *http.Request) {
+	storeID := r.PathValue("store_id")
+	productID := r.PathValue("id")
+	if storeID == "" || productID == "" {
+		http.Error(w, "missing store_id or product id", http.StatusBadRequest)
+		return
+	}
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		http.Error(w, "image too large or invalid form", http.StatusBadRequest)
+		return
+	}
+	file, header, err := r.FormFile("image")
+	if err != nil {
+		http.Error(w, "missing image field", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+	data, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, "failed to read image", http.StatusInternalServerError)
+		return
+	}
+	contentType := header.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	product, err := c.service.UploadImage(r.Context(), application.UploadProductImageInput{
+		ProductID: productID, StoreID: storeID,
+		Filename: header.Filename, ContentType: contentType, Data: data,
+	})
+	if err != nil {
+		c.handleError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(toProductResponse(product))
+}
+
 func (c *ProductController) handleError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, apiDomain.ErrProductNotFound):
 		http.Error(w, err.Error(), http.StatusNotFound)
 	case errors.Is(err, storeDomain.ErrStoreNotFound):
 		http.Error(w, err.Error(), http.StatusNotFound)
-	case errors.Is(err, apiDomain.ErrInvalidProductName), errors.Is(err, apiDomain.ErrInvalidProductDescription), errors.Is(err, apiDomain.ErrInvalidStock), errors.Is(err, apiDomain.ErrInvalidPrice), errors.Is(err, apiDomain.ErrInvalidStoreID):
+	case errors.Is(err, apiDomain.ErrInvalidProductName), errors.Is(err, apiDomain.ErrInvalidProductDescription), errors.Is(err, apiDomain.ErrInvalidStock), errors.Is(err, apiDomain.ErrInvalidPrice), errors.Is(err, apiDomain.ErrInvalidStoreID), errors.Is(err, apiDomain.ErrInvalidCategory):
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	default:
 		http.Error(w, "internal server error", http.StatusInternalServerError)

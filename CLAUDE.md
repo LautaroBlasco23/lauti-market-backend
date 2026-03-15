@@ -5,60 +5,71 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Install dev tools (gofumpt, golangci-lint, air, gotestsum)
-make install-tools
+# Development
+make dev          # Run with hot reload (air)
+make start        # Interactive start (choose: dev, docker test, prod)
 
-# Start databases (PostgreSQL + Redis via Docker)
-make db-up
+# Docker
+make docker-up    # Build and start full stack (API + PostgreSQL + Redis)
+make docker-down  # Stop full stack
+make db-up        # Start database services only (PostgreSQL + Redis)
+make db-down      # Stop database services
 
-# Start development server with hot reload (air) - requires db-up first
-make dev
+# Code quality
+make code-check   # Run gofumpt + golangci-lint
+make test         # Run tests with gotestsum (short-verbose format)
+make test-security # Run security tests against running containers
 
-# Format and lint
-make code-check
-
-# Run tests
-make test
-
-# Full stack in Docker
-make docker-up && make docker-down
+# Install dev tools
+make install-tools  # Install gofumpt, golangci-lint, air, gotestsum
 ```
 
-The API server runs on `:8080`.
+Server runs on `:8080` (Docker) or `PORT` env variable (default `:8000` in dev).
 
 ## Architecture
 
-Each module (`auth`, `user`, `store`, `product`, `order`) follows the same three-layer structure:
+Clean Architecture with these layers per module (dependency direction: infrastructure → application → domain):
 
 ```
-domain/         → entities, repository interfaces, domain errors
-application/    → service (business logic, orchestration)
-infrastructure/ → controller (HTTP handlers + DTOs), repository (PostgreSQL impl), routes/, wiring.go
+internal/
+├── api/                    # Shared infrastructure (errors, CORS, UUID, validator)
+└── {module}/               # auth, user, store, product, order, image
+    ├── domain/             # Entities with validation + repository interfaces
+    ├── application/        # Use cases / service layer
+    └── infrastructure/
+        ├── controller/     # HTTP handlers
+        ├── dto/            # Request/response types
+        ├── repository/     # PostgreSQL implementations
+        ├── routes/         # Route registration
+        ├── utils/          # Module-specific utilities
+        └── wiring.go       # Dependency injection entry point
 ```
 
-Dependency rule: Infrastructure → Application → Domain. Domain has no external dependencies.
+**Special modules:**
+- `image` — gRPC client adapter (no HTTP routes), consumed by `product` module
+- `order` — `Wire` takes additional args: `productRepo` and `authMw` (JWT middleware)
 
-Shared cross-module code lives in `internal/api/`:
-- `domain/errors.go` — centralized domain errors used across all modules
-- `domain/id_generator.go` — IDGenerator interface
-- `infrastructure/` — CORS middleware, UUID generator, request validator, JWT auth middleware
+**Entry point:** `cmd/api/main.go` — initializes DB, sets up CORS middleware, then wires modules in order: User → Store → Auth → Image → Product → Order.
 
-### Module wiring
+**Adding a new module:** create `domain/` (entity + repository interface), `application/service.go` (use cases), `infrastructure/` (controller, dto, repository, routes, wiring.go), then call `Wire()` from `main.go`.
 
-Each module exposes a `Wire(...)` function that constructs the full dependency chain (repo → service → controller → routes) and registers HTTP routes on the provided `*http.ServeMux`. Main wiring happens in `cmd/api/main.go`. The `order` module's `Wire` takes additional args: `productRepo` and `authMw` (JWT middleware).
+## Key Patterns
 
-### HTTP layer
+**Error handling:** Centralized error constants live in `internal/api/domain/errors.go`. Each module imports from `apiDomain` (not its own domain package) for shared errors.
 
-Uses Go's standard `http.ServeMux` with Go 1.22+ route patterns (e.g., `"POST /auth/register/user"`). No external router. Controllers map domain errors to HTTP status codes.
+**Validation:** Domain entities carry struct tags validated via `go-playground/validator`. The shared validator wrapper is at `internal/api/infrastructure/validator.go`.
 
-### Database
+**Dependency injection:** Each module's `wiring.go` instantiates all layers and registers routes. Interfaces are used at every boundary (repository, ID generator, password hasher, token generator).
 
-PostgreSQL only (Redis is configured but unused). Schema lives in `migrations/init.sql`. The `database/` package exposes a `Database` interface with a `postgres.go` implementation.
+**Database:** Raw SQL with `database/sql` + `lib/pq`. No ORM. Migrations live in `migrations/`. Schema: `users`, `stores`, `auths` (account_type CHECK: "user"|"store"), `products` (with category column), `orders`, `order_items`.
 
-## Key dependencies
+**Auth:** JWT-based. `AuthService` depends on both `UserService` and `StoreService` to create the underlying account before creating the auth record.
 
-- `github.com/golang-jwt/jwt/v5` — JWT auth
-- `github.com/google/uuid` — ID generation
-- `golang.org/x/crypto` — bcrypt hashing
-- `github.com/go-playground/validator` — request validation
-- `github.com/lib/pq` — PostgreSQL driver
+## Environment Variables
+
+```
+DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_SSLMODE
+JWT_SECRET
+IMAGE_STORE_ADDR  (gRPC address for image service, default: localhost:50051)
+PORT
+```

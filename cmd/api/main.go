@@ -16,6 +16,7 @@ import (
 	authinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure"
 	authUtils "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/utils"
 	orderinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/order/infrastructure"
+	imageinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/image/infrastructure"
 	productinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/product/infrastructure"
 	storeinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure"
 	userinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure"
@@ -60,7 +61,13 @@ func run() error {
 		JWTExpiration: 24 * time.Hour,
 	})
 
-	productModule := productinfra.Wire(mux, db, uuidGen, storeModule.Repository)
+	imageModule, err := imageinfra.Wire(getEnv("IMAGE_STORE_ADDR", "localhost:50051"))
+	if err != nil {
+		log.Fatalf("connecting to image service: %v", err)
+	}
+	defer imageModule.Close()
+
+	productModule := productinfra.Wire(mux, db, uuidGen, storeModule.Repository, imageModule.Client) 
 
 	jwtGen := authUtils.NewJWTGenerator(jwtSecret, 24*time.Hour)
 	authMw := apiInfrastructure.NewAuthMiddleware(jwtGen)

@@ -42,3 +42,6 @@ tmp/
 
 # Build artifacts
 *.log
+
+# Documentation
+.docs/

@@ -107,6 +107,7 @@ func (s *OrderService) UpdateStatus(ctx context.Context, input UpdateStatusInput
 			err = product.Update(
 				product.Name(),
 				product.Description(),
+				product.Category(),
 				product.Stock()+item.Quantity(),
 				product.Price(),
 				product.ImageURL(),
