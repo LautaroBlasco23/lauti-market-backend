@@ -1,4 +1,4 @@
-.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-security wait-db start fake-data download-images
+.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-coverage test-security wait-db start fake-data download-images
 .DEFAULT_GOAL := help
 
 help:
@@ -100,6 +100,9 @@ db-remove:
 
 test:
 	gotestsum --format=short-verbose
+
+test-coverage:
+	go test ./... -coverprofile=coverage.out && go tool cover -html=coverage.out
 
 fake-data:
 	@chmod +x scripts/fake-data-creator.sh
