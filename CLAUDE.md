@@ -22,6 +22,9 @@ make test-security # Run security tests against running containers
 
 # Install dev tools
 make install-tools  # Install gofumpt, golangci-lint, air, gotestsum
+
+# Scripts
+make download-images  # Download random product images from Unsplash (requires UNSPLASH_ACCESS_KEY)
 ```
 
 Server runs on `:8080` (Docker) or `PORT` env variable (default `:8000` in dev).
@@ -48,6 +51,7 @@ internal/
 **Special modules:**
 - `image` — gRPC client adapter (no HTTP routes), consumed by `product` module
 - `order` — `Wire` takes additional args: `productRepo` and `authMw` (JWT middleware)
+- `user`, `store`, `product` — `Wire` also takes `authMw` for protecting mutation routes
 
 **Entry point:** `cmd/api/main.go` — initializes DB, sets up CORS middleware, then wires modules in order: User → Store → Auth → Image → Product → Order.
 
@@ -65,11 +69,18 @@ internal/
 
 **Auth:** JWT-based. `AuthService` depends on both `UserService` and `StoreService` to create the underlying account before creating the auth record.
 
+**Authentication & ownership enforcement:** `authMw` (JWT middleware) is wired into user, store, and product modules. Pattern:
+- Middleware validates JWT and injects account ID into request context
+- Controllers check account ownership before allowing PUT/DELETE (user and store modules)
+- Controllers check account-type (`user` vs `store`) for store-only operations — only stores can create/update/delete products
+- Order read endpoints reject requests from accounts that don't own the order
+
 ## Environment Variables
 
 ```
 DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_SSLMODE
 JWT_SECRET
-IMAGE_STORE_ADDR  (gRPC address for image service, default: localhost:50051)
+IMAGE_STORE_ADDR      (gRPC address for image service, default: localhost:50051)
 PORT
+UNSPLASH_ACCESS_KEY   (optional; used by download-images script and fake-data-creator.sh)
 ```
