@@ -39,3 +39,26 @@ CREATE INDEX IF NOT EXISTS idx_auths_email ON auths(email);
 CREATE INDEX IF NOT EXISTS idx_auths_account ON auths(account_id, account_type);
 CREATE INDEX IF NOT EXISTS idx_products_store_id ON products(store_id);
 CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+
+CREATE TABLE IF NOT EXISTS orders (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL REFERENCES users(id),
+    store_id VARCHAR(36) NOT NULL REFERENCES stores(id),
+    status VARCHAR(20) NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending','confirmed','shipped','delivered','cancelled')),
+    total_price DECIMAL(12,2) NOT NULL CHECK (total_price > 0),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS order_items (
+    id VARCHAR(36) PRIMARY KEY,
+    order_id VARCHAR(36) NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    product_id VARCHAR(36) NOT NULL REFERENCES products(id),
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    unit_price DECIMAL(10,2) NOT NULL CHECK (unit_price > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_store_id ON orders(store_id);
+CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);

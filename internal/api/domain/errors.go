@@ -27,4 +27,15 @@ var (
 	ErrInvalidPrice              = errors.New("price must be greater than zero")
 	ErrInvalidStoreID            = errors.New("store id cannot be empty")
 	ErrProductNotFound           = errors.New("product not found")
+
+	// Order errors
+	ErrOrderNotFound            = errors.New("order not found")
+	ErrInsufficientStock        = errors.New("insufficient stock")
+	ErrEmptyOrderItems          = errors.New("order must have at least one item")
+	ErrInvalidQuantity          = errors.New("quantity must be greater than zero")
+	ErrInvalidOrderStatus       = errors.New("invalid order status")
+	ErrForbiddenTransition      = errors.New("invalid status transition")
+	ErrUnauthorized             = errors.New("unauthorized")
+	ErrForbidden                = errors.New("forbidden")
+	ErrItemsFromMultipleStores  = errors.New("all items must belong to the same store")
 )
