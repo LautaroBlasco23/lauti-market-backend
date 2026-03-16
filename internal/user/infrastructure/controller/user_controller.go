@@ -25,6 +25,16 @@ func (h *UserController) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, apiDomain.ErrUnauthorized.Error())
+		return
+	}
+	if claims.AccountID != id {
+		writeError(w, http.StatusForbidden, apiDomain.ErrForbidden.Error())
+		return
+	}
+
 	output, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err.Error())

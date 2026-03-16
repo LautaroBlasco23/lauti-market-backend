@@ -24,12 +24,16 @@ import (
 
 type mockUserRepo struct {
 	SaveFn     func(ctx context.Context, user *userDomain.User) error
+	UpdateFn   func(ctx context.Context, user *userDomain.User) error
 	FindByIDFn func(ctx context.Context, id string) (*userDomain.User, error)
 	DeleteFn   func(ctx context.Context, id string) error
 }
 
 func (m *mockUserRepo) Save(ctx context.Context, user *userDomain.User) error {
 	return m.SaveFn(ctx, user)
+}
+func (m *mockUserRepo) Update(ctx context.Context, user *userDomain.User) error {
+	return m.UpdateFn(ctx, user)
 }
 func (m *mockUserRepo) FindByID(ctx context.Context, id string) (*userDomain.User, error) {
 	return m.FindByIDFn(ctx, id)
@@ -81,11 +85,14 @@ func TestGetByID_Found(t *testing.T) {
 	}
 	c := makeUserController(repo)
 
+	handler, token := withClaims(t, http.HandlerFunc(c.GetByID), "user", "user-123")
+
 	req := httptest.NewRequest(http.MethodGet, "/users/user-123", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.SetPathValue("id", "user-123")
 	rr := httptest.NewRecorder()
 
-	c.GetByID(rr, req)
+	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	var resp map[string]string
@@ -102,13 +109,39 @@ func TestGetByID_NotFound(t *testing.T) {
 	}
 	c := makeUserController(repo)
 
+	handler, token := withClaims(t, http.HandlerFunc(c.GetByID), "user", "nonexistent")
+
 	req := httptest.NewRequest(http.MethodGet, "/users/nonexistent", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.SetPathValue("id", "nonexistent")
 	rr := httptest.NewRecorder()
 
-	c.GetByID(rr, req)
+	handler.ServeHTTP(rr, req)
 
 	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestGetByID_IDOR(t *testing.T) {
+	user, err := userDomain.NewUser("user-123", "John", "Doe")
+	require.NoError(t, err)
+
+	repo := &mockUserRepo{
+		FindByIDFn: func(ctx context.Context, id string) (*userDomain.User, error) {
+			return user, nil
+		},
+	}
+	c := makeUserController(repo)
+
+	handler, token := withClaims(t, http.HandlerFunc(c.GetByID), "user", "other-user")
+
+	req := httptest.NewRequest(http.MethodGet, "/users/user-123", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.SetPathValue("id", "user-123")
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusForbidden, rr.Code)
 }
 
 // --- Update ---
@@ -121,7 +154,7 @@ func TestUpdate_OwnAccount(t *testing.T) {
 		FindByIDFn: func(ctx context.Context, id string) (*userDomain.User, error) {
 			return user, nil
 		},
-		SaveFn: func(ctx context.Context, u *userDomain.User) error { return nil },
+		UpdateFn: func(ctx context.Context, u *userDomain.User) error { return nil },
 	}
 	c := makeUserController(repo)
 

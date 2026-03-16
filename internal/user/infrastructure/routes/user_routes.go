@@ -8,7 +8,7 @@ import (
 )
 
 func RegisterUserRoutes(mux *http.ServeMux, h *controller.UserController, authMw *apiInfra.AuthMiddleware) {
-	mux.HandleFunc("GET /users/{id}", h.GetByID)
+	mux.Handle("GET /users/{id}", authMw.Wrap(http.HandlerFunc(h.GetByID)))
 	mux.Handle("PUT /users/{id}", authMw.Wrap(http.HandlerFunc(h.Update)))
 	mux.Handle("DELETE /users/{id}", authMw.Wrap(http.HandlerFunc(h.Delete)))
 }
