@@ -17,14 +17,28 @@ make db-down      # Stop database services
 
 # Code quality
 make code-check   # Run gofumpt + golangci-lint
-make test         # Run tests with gotestsum (short-verbose format)
-make test-security # Run security tests against running containers
+make test         # Run all tests with gotestsum (short-verbose format)
+make test-coverage # Generate coverage.out and open HTML coverage report
+make test-security # Start full Docker stack + run ASVS security tests (cmd/securitytest)
 
 # Install dev tools
 make install-tools  # Install gofumpt, golangci-lint, air, gotestsum
 
 # Scripts
 make download-images  # Download random product images from Unsplash (requires UNSPLASH_ACCESS_KEY)
+```
+
+### Running tests selectively
+
+```bash
+# Unit tests only (no external dependencies)
+go test ./...
+
+# Include integration and E2E tests (requires Docker for testcontainers)
+go test -tags=integration ./...
+
+# Run a specific package
+go test ./internal/order/...
 ```
 
 Server runs on `:8080` (Docker) or `PORT` env variable (default `:8000` in dev).
@@ -74,6 +88,18 @@ internal/
 - Controllers check account ownership before allowing PUT/DELETE (user and store modules)
 - Controllers check account-type (`user` vs `store`) for store-only operations — only stores can create/update/delete products
 - Order read endpoints reject requests from accounts that don't own the order
+- Permission denied returns 403; unauthenticated returns 401
+
+**Testing strategy:** Tests are split into four phases:
+1. **Unit tests** (phases 1–2) — auth utilities, domain entities, services, JWT/bcrypt, middleware. No external deps.
+2. **Shared infra unit tests** (phase 3) — UUID generator, validator.
+3. **Repository integration tests** (phase 4.1) — raw SQL queries against a real PostgreSQL container (testcontainers-go). Build tag: `integration`.
+4. **Controller tests** (phase 4.2) — HTTP handlers via `httptest` with mock services.
+5. **E2E tests** (phase 4.3) — full vertical slice (HTTP → DB) for auth flows. Build tag: `integration`.
+
+**Test utilities:** `internal/testutil/db.go` (build tag: `integration`)
+- `SetupTestDB(t)` — spins up PostgreSQL 16-alpine container, runs all migrations, returns `*sql.DB`. Container cleaned up on `t.Cleanup`.
+- `TruncateTables(t, db)` — truncates all application tables between tests, preserving schema.
 
 ## Environment Variables
 
