@@ -75,6 +75,7 @@ services:
     environment:
       - STORAGE_BACKEND=local
       - BASE_URL=http://localhost:8087
+      - BIND_ADDR=0.0.0.0
     volumes:
       - image_storage_data:/app/images
     networks:
