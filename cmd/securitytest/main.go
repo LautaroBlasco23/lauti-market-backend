@@ -13,7 +13,7 @@ import (
 const baseURL = "http://localhost:8080"
 
 type User struct {
-	ID    string `json:"user_id"`
+	ID    string `json:"account_id"`
 	Token string `json:"token"`
 }
 
@@ -58,14 +58,32 @@ func main() {
 
 func registerAndLogin(email string) User {
 	pass := "Password123!"
-	http.Post(baseURL+"/auth/register", "application/json",
-		bytes.NewBufferString(fmt.Sprintf(`{"email":"%s","password":"%s","first_name":"A","last_name":"B"}`, email, pass)))
+	regRes, err := http.Post(baseURL+"/auth/register/user", "application/json",
+		bytes.NewBufferString(fmt.Sprintf(`{"email":"%s","password":"%s","first_name":"Alice","last_name":"Test"}`, email, pass)))
+	if err != nil {
+		log.Fatalf("register request failed: %v", err)
+	}
+	if regRes.StatusCode != http.StatusCreated {
+		b, _ := io.ReadAll(regRes.Body)
+		log.Fatalf("register failed (%d): %s", regRes.StatusCode, string(b))
+	}
+	regRes.Body.Close()
 
-	res, _ := http.Post(baseURL+"/auth/login", "application/json",
+	res, err := http.Post(baseURL+"/auth/login", "application/json",
 		bytes.NewBufferString(fmt.Sprintf(`{"email":"%s","password":"%s"}`, email, pass)))
+	if err != nil {
+		log.Fatalf("login request failed: %v", err)
+	}
+	if res.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(res.Body)
+		log.Fatalf("login failed (%d): %s", res.StatusCode, string(b))
+	}
 
 	var out User
 	json.NewDecoder(res.Body).Decode(&out)
+	if out.ID == "" || out.Token == "" {
+		log.Fatalf("login response missing id or token: %+v", out)
+	}
 	return out
 }
 

@@ -113,6 +113,8 @@ download-images:
 	set -a && . ./.env && set +a && go run scripts/download-images.go $(ARGS)
 
 test-security:
+	@echo "🧹 Cleaning up previous state..."
+	docker compose down -v 2>/dev/null || true
 	@echo "🐳 Starting containers..."
 	$(if $(wildcard .env),docker compose --env-file .env up -d --build,docker compose up -d --build)
 	@echo "⏳ Waiting for containers to be healthy..."
@@ -121,4 +123,4 @@ test-security:
 	@echo "🛡️ Running ASVS security tests..."
 	go run ./cmd/securitytest
 	@echo "🧹 Stopping containers..."
-	docker compose down
+	docker compose down -v
