@@ -113,11 +113,10 @@ download-images:
 	set -a && . ./.env && set +a && go run scripts/download-images.go $(ARGS)
 
 test-security:
-	@[ -f .env ] || (echo ".env not found"; exit 1)
 	@echo "🐳 Starting containers..."
-	docker compose --env-file .env up -d --build
+	$(if $(wildcard .env),docker compose --env-file .env up -d --build,docker compose up -d --build)
 	@echo "⏳ Waiting for containers to be healthy..."
-	@timeout 120 sh -c 'while [ -n "$$(docker compose ps -q | xargs docker inspect --format="{{.State.Health.Status}}" 2>/dev/null | grep -v healthy)" ]; do sleep 2; done' || (echo "❌ Timeout"; docker compose logs; exit 1)
+	@timeout 120 sh -c 'while [ -n "$$(docker compose ps -q | xargs docker inspect --format="{{.State.Health.Status}}" 2>/dev/null | grep -E "starting|unhealthy")" ]; do sleep 2; done' || (echo "❌ Timeout"; docker compose logs; exit 1)
 	@echo "✅ All containers healthy"
 	@echo "🛡️ Running ASVS security tests..."
 	go run ./cmd/securitytest
