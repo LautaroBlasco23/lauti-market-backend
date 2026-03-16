@@ -15,12 +15,17 @@ import (
 
 type mockUserRepo struct {
 	SaveFn     func(ctx context.Context, user *domain.User) error
+	UpdateFn   func(ctx context.Context, user *domain.User) error
 	FindByIDFn func(ctx context.Context, id string) (*domain.User, error)
 	DeleteFn   func(ctx context.Context, id string) error
 }
 
 func (m *mockUserRepo) Save(ctx context.Context, user *domain.User) error {
 	return m.SaveFn(ctx, user)
+}
+
+func (m *mockUserRepo) Update(ctx context.Context, user *domain.User) error {
+	return m.UpdateFn(ctx, user)
 }
 
 func (m *mockUserRepo) FindByID(ctx context.Context, id string) (*domain.User, error) {
@@ -101,7 +106,7 @@ func TestUpdate_HappyPath(t *testing.T) {
 		FindByIDFn: func(_ context.Context, _ string) (*domain.User, error) {
 			return u, nil
 		},
-		SaveFn: func(_ context.Context, _ *domain.User) error { return nil },
+		UpdateFn: func(_ context.Context, _ *domain.User) error { return nil },
 	}
 	svc := application.NewService(repo, &mockIDGen{"id-1"})
 

@@ -44,12 +44,20 @@ func (m *mockAuthRepo) Delete(ctx context.Context, id string) error {
 
 type mockUserRepo struct {
 	SaveFn     func(ctx context.Context, user *userDomain.User) error
+	UpdateFn   func(ctx context.Context, user *userDomain.User) error
 	FindByIDFn func(ctx context.Context, id string) (*userDomain.User, error)
 	DeleteFn   func(ctx context.Context, id string) error
 }
 
 func (m *mockUserRepo) Save(ctx context.Context, user *userDomain.User) error {
 	return m.SaveFn(ctx, user)
+}
+
+func (m *mockUserRepo) Update(ctx context.Context, user *userDomain.User) error {
+	if m.UpdateFn != nil {
+		return m.UpdateFn(ctx, user)
+	}
+	return nil
 }
 
 func (m *mockUserRepo) FindByID(ctx context.Context, id string) (*userDomain.User, error) {
