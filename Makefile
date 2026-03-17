@@ -100,9 +100,11 @@ test-security:
 	@[ -f .env ] || (echo ".env not found"; exit 1)
 	@echo "🐳 Starting containers..."
 	docker compose --env-file .env up -d --build
-	@echo "⏳ Waiting for containers to be healthy..."
-	@timeout 120 sh -c 'while [ -n "$$(docker compose ps -q | xargs docker inspect --format="{{.State.Health.Status}}" 2>/dev/null | grep -v healthy)" ]; do sleep 2; done' || (echo "❌ Timeout"; docker compose logs; exit 1)
-	@echo "✅ All containers healthy"
+	@echo "⏳ Waiting for databases..."
+	@timeout 60 sh -c 'until docker exec lauti-market-postgres pg_isready -U postgres > /dev/null 2>&1; do sleep 2; done' || (echo "❌ DB timeout"; docker compose logs; exit 1)
+	@echo "⏳ Waiting for API..."
+	@timeout 120 sh -c 'until curl -sf http://localhost:8080/health > /dev/null 2>&1; do sleep 2; done' || (echo "❌ API timeout"; docker compose logs; exit 1)
+	@echo "✅ All services ready"
 	@echo "🛡️ Running ASVS security tests..."
 	go run ./cmd/securitytest
 	@echo "🧹 Stopping containers..."
