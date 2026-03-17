@@ -13,7 +13,7 @@ import (
 const baseURL = "http://localhost:8080"
 
 type User struct {
-	ID    string `json:"user_id"`
+	ID    string `json:"account_id"`
 	Token string `json:"token"`
 }
 
@@ -58,8 +58,8 @@ func main() {
 
 func registerAndLogin(email string) User {
 	pass := "Password123!"
-	http.Post(baseURL+"/auth/register", "application/json",
-		bytes.NewBufferString(fmt.Sprintf(`{"email":"%s","password":"%s","first_name":"A","last_name":"B"}`, email, pass)))
+	http.Post(baseURL+"/auth/register/user", "application/json",
+		bytes.NewBufferString(fmt.Sprintf(`{"email":"%s","password":"%s","first_name":"Al","last_name":"Bo"}`, email, pass)))
 
 	res, _ := http.Post(baseURL+"/auth/login", "application/json",
 		bytes.NewBufferString(fmt.Sprintf(`{"email":"%s","password":"%s"}`, email, pass)))
