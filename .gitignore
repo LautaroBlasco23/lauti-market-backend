@@ -42,6 +42,7 @@ tmp/
 
 # Build artifacts
 *.log
+api
 
 # Documentation
 .docs/
