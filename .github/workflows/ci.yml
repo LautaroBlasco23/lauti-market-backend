@@ -30,10 +30,10 @@ jobs:
 
       - name: Cleanup containers
         if: always()
-        run: docker-compose down -v || true
+        run: docker compose down -v || true
 
       - name: Build binary
-        run: go build -o app ./cmd/main
+        run: go build -o app ./cmd/api
 
       - name: Login to Docker Hub
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
