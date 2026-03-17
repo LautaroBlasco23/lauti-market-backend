@@ -69,7 +69,7 @@ func (s *UserService) Update(ctx context.Context, input UpdateInput) (*Output, e
 	if err := u.UpdateName(input.FirstName, input.LastName); err != nil {
 		return nil, err
 	}
-	if err := s.repo.Save(ctx, u); err != nil {
+	if err := s.repo.Update(ctx, u); err != nil {
 		return nil, err
 	}
 	return &Output{
