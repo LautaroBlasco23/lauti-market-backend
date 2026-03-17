@@ -57,7 +57,7 @@ func SetupTestDB(t *testing.T) *sql.DB {
 // TruncateTables truncates all application tables between tests (preserving schema).
 func TruncateTables(t *testing.T, db *sql.DB) {
 	t.Helper()
-	_, err := db.Exec(`TRUNCATE TABLE order_items, orders, products, auths, stores, users RESTART IDENTITY CASCADE`)
+	_, err := db.Exec(`TRUNCATE TABLE payments, order_items, orders, products, auths, stores, users RESTART IDENTITY CASCADE`)
 	require.NoError(t, err)
 }
 

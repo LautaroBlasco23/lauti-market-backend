@@ -15,8 +15,9 @@ import (
 	apiInfrastructure "github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	authinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure"
 	authUtils "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/utils"
-	orderinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/order/infrastructure"
 	imageinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/image/infrastructure"
+	orderinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/order/infrastructure"
+	paymentinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/payment/infrastructure"
 	productinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/product/infrastructure"
 	storeinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure"
 	userinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure"
@@ -29,7 +30,7 @@ func main() {
 }
 
 func run() error {
-	postgres, err := database.NewPostgres(database.PostgresConfig{
+	postgres, err := database.NewPostgres(&database.PostgresConfig{
 		Host:     getEnv("DB_HOST", "localhost"),
 		Port:     5432,
 		User:     getEnv("DB_USER", "postgres"),
@@ -41,8 +42,8 @@ func run() error {
 		return fmt.Errorf("connecting to database: %w", err)
 	}
 	defer func() {
-		if err := postgres.Close(); err != nil {
-			log.Printf("error closing database connection: %v", err)
+		if closeErr := postgres.Close(); closeErr != nil {
+			log.Printf("error closing database connection: %v", closeErr)
 		}
 	}()
 
@@ -64,14 +65,23 @@ func run() error {
 		JWTExpiration: 24 * time.Hour,
 	})
 
-	imageModule, err := imageinfra.Wire(getEnv("IMAGE_STORE_ADDR", "localhost:50051"))
-	if err != nil {
-		log.Fatalf("connecting to image service: %v", err)
+	imageModule, imgErr := imageinfra.Wire(getEnv("IMAGE_STORE_ADDR", "localhost:50051"))
+	if imgErr != nil {
+		log.Fatalf("connecting to image service: %v", imgErr)
 	}
-	defer imageModule.Close()
+	defer func() {
+		if closeErr := imageModule.Close(); closeErr != nil {
+			log.Printf("error closing image module: %v", closeErr)
+		}
+	}()
 
 	productModule := productinfra.Wire(mux, db, uuidGen, storeModule.Repository, imageModule.Client, authMw)
-	orderinfra.Wire(mux, db, uuidGen, productModule.Repository, authMw)
+	orderModule := orderinfra.Wire(mux, db, uuidGen, productModule.Repository, authMw)
+
+	paymentinfra.Wire(mux, db, uuidGen, orderModule.Repository, authMw,
+		getEnv("MERCADO_PAGO_ACCESS_TOKEN", ""),
+		getEnv("MERCADO_PAGO_WEBHOOK_SECRET", ""),
+	)
 
 	server := &http.Server{
 		Addr:         getEnv("PORT", ":8000"),
