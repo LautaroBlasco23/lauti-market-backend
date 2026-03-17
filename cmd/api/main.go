@@ -67,7 +67,7 @@ func run() error {
 
 	imageModule, imgErr := imageinfra.Wire(getEnv("IMAGE_STORE_ADDR", "localhost:50051"))
 	if imgErr != nil {
-		log.Fatalf("connecting to image service: %v", imgErr)
+		return fmt.Errorf("connecting to image service: %w", imgErr)
 	}
 	defer func() {
 		if closeErr := imageModule.Close(); closeErr != nil {
