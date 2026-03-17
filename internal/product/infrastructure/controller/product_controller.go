@@ -119,7 +119,7 @@ func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) {
 		input.ImageContentType = contentType
 	}
 
-	product, err := c.service.Create(r.Context(), input)
+	product, err := c.service.Create(r.Context(), &input)
 	if err != nil {
 		c.handleError(w, err)
 		return
@@ -252,7 +252,7 @@ func (c *ProductController) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	product, err := c.service.Update(r.Context(), application.UpdateProductInput{
+	product, err := c.service.Update(r.Context(), &application.UpdateProductInput{
 		ID:          id,
 		Name:        req.Name,
 		Description: req.Description,
@@ -343,7 +343,7 @@ func (c *ProductController) UploadImage(w http.ResponseWriter, r *http.Request) 
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
-	product, err := c.service.UploadImage(r.Context(), application.UploadProductImageInput{
+	product, err := c.service.UploadImage(r.Context(), &application.UploadProductImageInput{
 		ProductID: productID, StoreID: storeID,
 		Filename: header.Filename, ContentType: contentType, Data: data,
 	})

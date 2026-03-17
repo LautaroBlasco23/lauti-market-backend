@@ -100,7 +100,7 @@ func (h *StoreController) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	store, err := h.service.Update(r.Context(), application.UpdateStoreInput{
+	store, err := h.service.Update(r.Context(), &application.UpdateStoreInput{
 		ID:          string(id),
 		Name:        req.Name,
 		Description: req.Description,

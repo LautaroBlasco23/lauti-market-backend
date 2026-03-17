@@ -274,7 +274,7 @@ func TestRegisterStore_HappyPath(t *testing.T) {
 	}
 	svc := buildService(authRepo, &mockUserRepo{}, storeRepo, &mockIDGen{"id-1"}, defaultHasher(), defaultTokenGen())
 
-	out, err := svc.RegisterStore(context.Background(), application.RegisterStoreInput{
+	out, err := svc.RegisterStore(context.Background(), &application.RegisterStoreInput{
 		Email:       "store@example.com",
 		Password:    "password123",
 		Name:        "My Store",
@@ -297,7 +297,7 @@ func TestRegisterStore_EmailAlreadyExists(t *testing.T) {
 	}
 	svc := buildService(authRepo, &mockUserRepo{}, &mockStoreRepo{}, &mockIDGen{"id-1"}, defaultHasher(), defaultTokenGen())
 
-	_, err := svc.RegisterStore(context.Background(), application.RegisterStoreInput{
+	_, err := svc.RegisterStore(context.Background(), &application.RegisterStoreInput{
 		Email:    "store@example.com",
 		Password: "password123",
 	})
@@ -317,7 +317,7 @@ func TestRegisterStore_StoreCreationFails(t *testing.T) {
 	}
 	svc := buildService(authRepo, &mockUserRepo{}, storeRepo, &mockIDGen{"id-1"}, defaultHasher(), defaultTokenGen())
 
-	_, err := svc.RegisterStore(context.Background(), application.RegisterStoreInput{
+	_, err := svc.RegisterStore(context.Background(), &application.RegisterStoreInput{
 		Email:       "store@example.com",
 		Password:    "password123",
 		Name:        "My Store",

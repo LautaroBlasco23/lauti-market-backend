@@ -25,7 +25,7 @@ type unsplashPhoto struct {
 	} `json:"urls"`
 }
 
-func main() {
+func main() { //nolint:gocyclo
 	accessKey := os.Getenv("UNSPLASH_ACCESS_KEY")
 	if accessKey == "" {
 		fmt.Fprintln(os.Stderr, "Error: UNSPLASH_ACCESS_KEY env var is required.")
@@ -105,7 +105,7 @@ func main() {
 	var photos []unsplashPhoto
 	if err := json.NewDecoder(resp.Body).Decode(&photos); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing response: %v\n", err)
-		os.Exit(1)
+		os.Exit(1) //nolint:gocritic
 	}
 
 	fmt.Printf("Fetched %d photo(s), downloading...\n", len(photos))

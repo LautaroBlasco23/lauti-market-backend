@@ -137,7 +137,7 @@ func TestUpdate_HappyPath(t *testing.T) {
 	}
 	svc := application.NewService(repo, &mockIDGen{"id-1"})
 
-	store, err := svc.Update(context.Background(), application.UpdateStoreInput{
+	store, err := svc.Update(context.Background(), &application.UpdateStoreInput{
 		ID:          "id-1",
 		Name:        "Updated Store",
 		Description: "Updated desc",

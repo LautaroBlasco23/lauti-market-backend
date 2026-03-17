@@ -62,7 +62,7 @@ func main() {
 func registerAndLogin(email string) User {
 	pass := "Password123!"
 	regRes, err := http.Post(baseURL+"/auth/register/user", "application/json",
-		bytes.NewBufferString(fmt.Sprintf(`{"email":"%s","password":"%s","first_name":"Alice","last_name":"Test"}`, email, pass)))
+		bytes.NewBufferString(fmt.Sprintf(`{"email":%q,"password":%q,"first_name":"Alice","last_name":"Test"}`, email, pass)))
 	if err != nil {
 		log.Fatalf("register request failed: %v", err)
 	}
@@ -73,7 +73,7 @@ func registerAndLogin(email string) User {
 	_ = regRes.Body.Close() //nolint:errcheck
 
 	res, err := http.Post(baseURL+"/auth/login", "application/json",
-		bytes.NewBufferString(fmt.Sprintf(`{"email":"%s","password":"%s"}`, email, pass)))
+		bytes.NewBufferString(fmt.Sprintf(`{"email":%q,"password":%q}`, email, pass)))
 	if err != nil {
 		log.Fatalf("login request failed: %v", err)
 	}

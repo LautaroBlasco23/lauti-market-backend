@@ -74,7 +74,7 @@ func (h *Controller) RegisterStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	output, err := h.service.RegisterStore(r.Context(), application.RegisterStoreInput{
+	output, err := h.service.RegisterStore(r.Context(), &application.RegisterStoreInput{
 		Email:       req.Email,
 		Password:    req.Password,
 		Name:        req.Name,

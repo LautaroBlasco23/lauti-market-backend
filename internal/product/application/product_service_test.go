@@ -128,7 +128,7 @@ func TestCreate_HappyPath(t *testing.T) {
 	}
 	svc := application.NewService(productRepo, storeFoundRepo("store-1"), &mockIDGen{"prod-1"}, noImageClient())
 
-	p, err := svc.Create(context.Background(), application.CreateProductInput{
+	p, err := svc.Create(context.Background(), &application.CreateProductInput{
 		StoreID:     "store-1",
 		Name:        "Widget",
 		Description: "A widget",
@@ -145,7 +145,7 @@ func TestCreate_HappyPath(t *testing.T) {
 func TestCreate_StoreNotFound(t *testing.T) {
 	svc := application.NewService(&mockProductRepo{}, storeNotFoundRepo(), &mockIDGen{"prod-1"}, noImageClient())
 
-	_, err := svc.Create(context.Background(), application.CreateProductInput{
+	_, err := svc.Create(context.Background(), &application.CreateProductInput{
 		StoreID:     "store-1",
 		Name:        "Widget",
 		Description: "A widget",
@@ -167,7 +167,7 @@ func TestCreate_WithImage(t *testing.T) {
 	}
 	svc := application.NewService(productRepo, storeFoundRepo("store-1"), &mockIDGen{"prod-1"}, imageClient)
 
-	p, err := svc.Create(context.Background(), application.CreateProductInput{
+	p, err := svc.Create(context.Background(), &application.CreateProductInput{
 		StoreID:          "store-1",
 		Name:             "Widget",
 		Description:      "A widget",
@@ -187,7 +187,7 @@ func TestCreate_WithImage(t *testing.T) {
 func TestCreate_InvalidInput(t *testing.T) {
 	svc := application.NewService(&mockProductRepo{}, storeFoundRepo("store-1"), &mockIDGen{"prod-1"}, noImageClient())
 
-	_, err := svc.Create(context.Background(), application.CreateProductInput{
+	_, err := svc.Create(context.Background(), &application.CreateProductInput{
 		StoreID:     "store-1",
 		Name:        "", // invalid
 		Description: "A widget",
@@ -266,7 +266,7 @@ func TestUpdate_HappyPath(t *testing.T) {
 	}
 	svc := application.NewService(productRepo, storeFoundRepo("store-1"), &mockIDGen{"prod-1"}, noImageClient())
 
-	p, err := svc.Update(context.Background(), application.UpdateProductInput{
+	p, err := svc.Update(context.Background(), &application.UpdateProductInput{
 		ID:          "prod-1",
 		Name:        "Gadget",
 		Description: "A gadget",

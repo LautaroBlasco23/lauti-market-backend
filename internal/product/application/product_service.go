@@ -54,7 +54,7 @@ type GetAllProductsInput struct {
 	Category *string
 }
 
-func (s *ProductService) Create(ctx context.Context, input CreateProductInput) (*domain.Product, error) {
+func (s *ProductService) Create(ctx context.Context, input *CreateProductInput) (*domain.Product, error) {
 	if _, err := s.storeRepo.FindByID(ctx, input.StoreID); err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (s *ProductService) GetByStoreID(ctx context.Context, storeID string, limit
 	return s.repo.FindByStoreID(ctx, storeID, limit, offset)
 }
 
-func (s *ProductService) Update(ctx context.Context, input UpdateProductInput) (*domain.Product, error) {
+func (s *ProductService) Update(ctx context.Context, input *UpdateProductInput) (*domain.Product, error) {
 	product, err := s.repo.FindByID(ctx, input.ID)
 	if err != nil {
 		return nil, err
@@ -146,7 +146,7 @@ type UploadProductImageInput struct {
 	Data        []byte
 }
 
-func (s *ProductService) UploadImage(ctx context.Context, input UploadProductImageInput) (*domain.Product, error) {
+func (s *ProductService) UploadImage(ctx context.Context, input *UploadProductImageInput) (*domain.Product, error) {
 	product, err := s.repo.FindByID(ctx, input.ProductID)
 	if err != nil {
 		return nil, err

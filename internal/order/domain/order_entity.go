@@ -50,7 +50,7 @@ func NewOrderFromDB(id, userID, storeID string, status OrderStatus, items []*Ord
 	}
 }
 
-func (o *Order) TransitionStatus(newStatus OrderStatus, accountType, accountID string) error {
+func (o *Order) TransitionStatus(newStatus OrderStatus, accountType, accountID string) error { //nolint:gocyclo
 	switch {
 	case o.status == StatusPending && newStatus == StatusConfirmed:
 		if accountType != "store" || accountID != o.storeID {
