@@ -50,4 +50,4 @@ scripts/fake-data-images/
 .docs/
 
 # Generated API
-api/
+/api/

@@ -24,6 +24,12 @@ func (h *UserController) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	callerID, _ := infrastructure.AccountIDFromContext(r)
+	if callerID != id {
+		writeError(w, http.StatusForbidden, "forbidden")
+		return
+	}
+
 	output, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err.Error())
@@ -41,6 +47,12 @@ func (h *UserController) Update(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		writeError(w, http.StatusBadRequest, "missing user id")
+		return
+	}
+
+	callerID, _ := infrastructure.AccountIDFromContext(r)
+	if callerID != id {
+		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
 
@@ -81,6 +93,12 @@ func (h *UserController) Delete(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		writeError(w, http.StatusBadRequest, "missing user id")
+		return
+	}
+
+	callerID, _ := infrastructure.AccountIDFromContext(r)
+	if callerID != id {
+		writeError(w, http.StatusForbidden, "forbidden")
 		return
 	}
 

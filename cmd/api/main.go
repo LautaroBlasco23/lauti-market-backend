@@ -47,13 +47,26 @@ func run() error {
 	db := postgres.DB()
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 	uuidGen := apiInfrastructure.NewUUIDGenerator()
 
-	userModule := userinfra.Wire(mux, db, uuidGen)
+	jwtSecret := getEnv("JWT_SECRET", "your-secret-key-change-in-production")
+	jwtGen := authUtils.NewJWTGenerator(jwtSecret, 24*time.Hour)
+	validate := func(token string) (string, error) {
+		claims, err := jwtGen.Validate(token)
+		if err != nil {
+			return "", err
+		}
+		return claims.AccountID, nil
+	}
+
+	userModule := userinfra.Wire(mux, db, uuidGen, validate)
 	storeModule := storeinfra.Wire(mux, db, uuidGen)
 
 	authinfra.Wire(mux, db, uuidGen, userModule, storeModule, authUtils.JwtConfig{
-		JWTSecret:     getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
+		JWTSecret:     jwtSecret,
 		JWTExpiration: 24 * time.Hour,
 	})
 

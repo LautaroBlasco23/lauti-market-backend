@@ -17,12 +17,12 @@ type UserModule struct {
 	Controller *controller.UserController
 }
 
-func Wire(mux *http.ServeMux, db *sql.DB, idGen apiDomain.IDGenerator) *UserModule {
+func Wire(mux *http.ServeMux, db *sql.DB, idGen apiDomain.IDGenerator, validate func(string) (string, error)) *UserModule {
 	repo := repository.NewUserPostgresRepository(db)
 	service := application.NewService(repo, idGen)
 	userController := controller.NewUserController(service)
 
-	routes.RegisterUserRoutes(mux, userController)
+	routes.RegisterUserRoutes(mux, userController, validate)
 
 	return &UserModule{
 		Repository: repo,
