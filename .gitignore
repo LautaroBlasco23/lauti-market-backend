@@ -42,3 +42,12 @@ tmp/
 
 # Build artifacts
 *.log
+
+# Fake data assets
+scripts/fake-data-images/
+
+# Agent artifacts
+.docs/
+
+# Generated API
+api/
