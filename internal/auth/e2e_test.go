@@ -18,8 +18,8 @@ import (
 	authinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure"
 	authUtils "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/utils"
 	storeinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure"
-	userinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/testutil"
+	userinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure"
 )
 
 const testJWTSecret = "e2e-test-secret"

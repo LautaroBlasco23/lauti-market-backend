@@ -16,8 +16,8 @@ import (
 	authDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/domain"
 	authUtils "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/utils"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/application"
-	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure/controller"
 	userDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/user/domain"
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure/controller"
 )
 
 // --- Mocks ---
@@ -32,9 +32,11 @@ type mockUserRepo struct {
 func (m *mockUserRepo) Save(ctx context.Context, user *userDomain.User) error {
 	return m.SaveFn(ctx, user)
 }
+
 func (m *mockUserRepo) Update(ctx context.Context, user *userDomain.User) error {
 	return m.UpdateFn(ctx, user)
 }
+
 func (m *mockUserRepo) FindByID(ctx context.Context, id string) (*userDomain.User, error) {
 	return m.FindByIDFn(ctx, id)
 }
@@ -310,4 +312,3 @@ func TestDelete_NotFound(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
-

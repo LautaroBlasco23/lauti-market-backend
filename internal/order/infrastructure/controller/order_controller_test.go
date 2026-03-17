@@ -17,8 +17,8 @@ import (
 	authDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/domain"
 	authUtils "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/utils"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/order/application"
-	"github.com/LautaroBlasco23/lauti-market-backend/internal/order/infrastructure/controller"
 	orderDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/order/domain"
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/order/infrastructure/controller"
 	productDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/product/domain"
 )
 
@@ -35,15 +35,19 @@ type mockOrderRepo struct {
 func (m *mockOrderRepo) Save(ctx context.Context, order *orderDomain.Order) error {
 	return m.SaveFn(ctx, order)
 }
+
 func (m *mockOrderRepo) FindByID(ctx context.Context, id string) (*orderDomain.Order, error) {
 	return m.FindByIDFn(ctx, id)
 }
+
 func (m *mockOrderRepo) FindByUserID(ctx context.Context, userID string, limit, offset int) ([]*orderDomain.Order, error) {
 	return m.FindByUserIDFn(ctx, userID, limit, offset)
 }
+
 func (m *mockOrderRepo) FindByStoreID(ctx context.Context, storeID string, limit, offset int) ([]*orderDomain.Order, error) {
 	return m.FindByStoreIDFn(ctx, storeID, limit, offset)
 }
+
 func (m *mockOrderRepo) UpdateStatus(ctx context.Context, id string, status orderDomain.OrderStatus) error {
 	return m.UpdateStatusFn(ctx, id, status)
 }
@@ -57,12 +61,15 @@ func (m *mockProductRepo) Save(ctx context.Context, p *productDomain.Product) er
 func (m *mockProductRepo) FindByID(ctx context.Context, id string) (*productDomain.Product, error) {
 	return m.FindByIDFn(ctx, id)
 }
+
 func (m *mockProductRepo) FindAll(ctx context.Context, limit, offset int, category *string) ([]*productDomain.Product, error) {
 	return nil, nil
 }
+
 func (m *mockProductRepo) FindByStoreID(ctx context.Context, storeID string, limit, offset int) ([]*productDomain.Product, error) {
 	return nil, nil
 }
+
 func (m *mockProductRepo) Update(ctx context.Context, p *productDomain.Product) error {
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ctx, p)

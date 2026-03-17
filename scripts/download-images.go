@@ -76,28 +76,31 @@ func main() {
 	scriptDir := filepath.Dir(thisFile)
 	saveDir := filepath.Join(scriptDir, "fake-data-images")
 
-	if err := os.MkdirAll(saveDir, 0o755); err != nil {
+	if err := os.MkdirAll(saveDir, 0o750); err != nil { //nolint:gosec
 		fmt.Fprintf(os.Stderr, "Error creating directory: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Fetch random photos
 	url := fmt.Sprintf("%s?query=%s&count=%d&client_id=%s", apiURL, query, count, accessKey)
-	resp, err := http.Get(url)
+	resp, err := http.Get(url) //nolint:gosec
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error fetching from Unsplash: %v\n", err)
 		os.Exit(1)
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body) //nolint:errcheck
+		_ = resp.Body.Close()            //nolint:errcheck
 		fmt.Fprintf(os.Stderr, "Unsplash API error (HTTP %d): %s\n", resp.StatusCode, string(body))
 		if resp.StatusCode == 403 || resp.StatusCode == 429 {
 			fmt.Fprintln(os.Stderr, "Hint: free tier allows 50 requests/hour.")
 		}
 		os.Exit(1)
 	}
+	defer func() {
+		_ = resp.Body.Close() //nolint:errcheck
+	}()
 
 	var photos []unsplashPhoto
 	if err := json.NewDecoder(resp.Body).Decode(&photos); err != nil {
@@ -124,21 +127,25 @@ func main() {
 }
 
 func downloadFile(url, dest string) error {
-	resp, err := http.Get(url)
+	resp, err := http.Get(url) //nolint:gosec
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close() //nolint:errcheck
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 
-	f, err := os.Create(dest)
+	f, err := os.Create(dest) //nolint:gosec
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close() //nolint:errcheck
+	}()
 
 	_, err = io.Copy(f, resp.Body)
 	return err

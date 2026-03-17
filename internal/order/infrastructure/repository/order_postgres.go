@@ -22,7 +22,9 @@ func (r *OrderPostgresRepository) Save(ctx context.Context, order *domain.Order)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback() //nolint:errcheck
+	}()
 
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO orders (id, user_id, store_id, status, total_price)
@@ -95,7 +97,9 @@ func (r *OrderPostgresRepository) FindByUserID(ctx context.Context, userID strin
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() //nolint:errcheck
+	}()
 
 	return r.scanOrders(ctx, rows)
 }
@@ -110,7 +114,9 @@ func (r *OrderPostgresRepository) FindByStoreID(ctx context.Context, storeID str
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() //nolint:errcheck
+	}()
 
 	return r.scanOrders(ctx, rows)
 }
@@ -142,7 +148,9 @@ func (r *OrderPostgresRepository) findItemsByOrderID(ctx context.Context, orderI
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() //nolint:errcheck
+	}()
 
 	var items []*domain.OrderItem
 	for rows.Next() {

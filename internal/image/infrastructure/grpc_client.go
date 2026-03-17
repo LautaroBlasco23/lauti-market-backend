@@ -25,14 +25,14 @@ func (c *GRPCImageClient) UploadImage(ctx context.Context, input imageDomain.Upl
 		return nil, fmt.Errorf("opening upload stream: %w", err)
 	}
 
-	if err := stream.Send(&imagestorev1.UploadImageRequest{
+	if sendErr := stream.Send(&imagestorev1.UploadImageRequest{
 		Data: &imagestorev1.UploadImageRequest_Metadata{
 			Metadata: &imagestorev1.ImageMetadataInput{
 				UserId: input.UserID, Filename: input.Filename, ContentType: input.ContentType,
 			},
 		},
-	}); err != nil {
-		return nil, fmt.Errorf("sending metadata: %w", err)
+	}); sendErr != nil {
+		return nil, fmt.Errorf("sending metadata: %w", sendErr)
 	}
 
 	data := input.Data
@@ -41,10 +41,10 @@ func (c *GRPCImageClient) UploadImage(ctx context.Context, input imageDomain.Upl
 		if n > len(data) {
 			n = len(data)
 		}
-		if err := stream.Send(&imagestorev1.UploadImageRequest{
+		if sendErr := stream.Send(&imagestorev1.UploadImageRequest{
 			Data: &imagestorev1.UploadImageRequest_Chunk{Chunk: data[:n]},
-		}); err != nil {
-			return nil, fmt.Errorf("sending chunk: %w", err)
+		}); sendErr != nil {
+			return nil, fmt.Errorf("sending chunk: %w", sendErr)
 		}
 		data = data[n:]
 	}

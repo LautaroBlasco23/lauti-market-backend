@@ -63,7 +63,7 @@ func (c *OrderController) Create(w http.ResponseWriter, r *http.Request) {
 	if err := apiInfra.Validate(req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
 			"error":  "invalid_payload",
 			"fields": apiInfra.FieldErrors(err),
 		})
@@ -90,7 +90,7 @@ func (c *OrderController) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(toOrderResponse(order))
+	_ = json.NewEncoder(w).Encode(toOrderResponse(order)) //nolint:errcheck
 }
 
 func (c *OrderController) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +120,7 @@ func (c *OrderController) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(toOrderResponse(order))
+	_ = json.NewEncoder(w).Encode(toOrderResponse(order)) //nolint:errcheck
 }
 
 func (c *OrderController) GetByUserID(w http.ResponseWriter, r *http.Request) {
@@ -153,7 +153,7 @@ func (c *OrderController) GetByUserID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response) //nolint:errcheck
 }
 
 func (c *OrderController) GetByStoreID(w http.ResponseWriter, r *http.Request) {
@@ -186,7 +186,7 @@ func (c *OrderController) GetByStoreID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response) //nolint:errcheck
 }
 
 func (c *OrderController) UpdateStatus(w http.ResponseWriter, r *http.Request) {
@@ -211,7 +211,7 @@ func (c *OrderController) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	if err := apiInfra.Validate(req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
 			"error":  "invalid_payload",
 			"fields": apiInfra.FieldErrors(err),
 		})
@@ -236,7 +236,7 @@ func (c *OrderController) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(toOrderResponse(order))
+	_ = json.NewEncoder(w).Encode(toOrderResponse(order)) //nolint:errcheck
 }
 
 func (c *OrderController) handleError(w http.ResponseWriter, err error) {

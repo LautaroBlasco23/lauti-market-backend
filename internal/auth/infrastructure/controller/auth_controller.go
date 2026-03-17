@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 
+	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/application"
-	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/dto"
 )
 
@@ -29,7 +29,7 @@ func (h *Controller) RegisterUser(w http.ResponseWriter, r *http.Request) {
 	if err := infrastructure.Validate(req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
 			"error":  "invalid_payload",
 			"fields": infrastructure.FieldErrors(err),
 		})
@@ -49,7 +49,7 @@ func (h *Controller) RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(dto.RegisterResponse{
+	_ = json.NewEncoder(w).Encode(dto.RegisterResponse{ //nolint:errcheck
 		AuthID:      string(output.AuthID),
 		AccountID:   string(output.AccountID),
 		AccountType: string(output.AccountType),
@@ -67,7 +67,7 @@ func (h *Controller) RegisterStore(w http.ResponseWriter, r *http.Request) {
 	if err := infrastructure.Validate(req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
 			"error":  "invalid_payload",
 			"fields": infrastructure.FieldErrors(err),
 		})
@@ -89,7 +89,7 @@ func (h *Controller) RegisterStore(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(dto.RegisterResponse{
+	_ = json.NewEncoder(w).Encode(dto.RegisterResponse{ //nolint:errcheck
 		AuthID:      string(output.AuthID),
 		AccountID:   string(output.AccountID),
 		AccountType: string(output.AccountType),
@@ -107,7 +107,7 @@ func (h *Controller) Login(w http.ResponseWriter, r *http.Request) {
 	if err := infrastructure.Validate(req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
 			"error":  "invalid_payload",
 			"fields": infrastructure.FieldErrors(err),
 		})
@@ -124,7 +124,7 @@ func (h *Controller) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(dto.LoginResponse{
+	_ = json.NewEncoder(w).Encode(dto.LoginResponse{ //nolint:errcheck
 		Token:       output.Token,
 		AccountID:   string(output.AccountID),
 		AccountType: string(output.AccountType),

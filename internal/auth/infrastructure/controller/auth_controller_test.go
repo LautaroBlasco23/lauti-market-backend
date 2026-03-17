@@ -37,9 +37,11 @@ type mockAuthRepo struct {
 func (m *mockAuthRepo) Save(ctx context.Context, auth *authDomain.Auth) error {
 	return m.SaveFn(ctx, auth)
 }
+
 func (m *mockAuthRepo) FindByID(ctx context.Context, id string) (*authDomain.Auth, error) {
 	return m.FindByIDFn(ctx, id)
 }
+
 func (m *mockAuthRepo) FindByEmail(ctx context.Context, email string) (*authDomain.Auth, error) {
 	return m.FindByEmailFn(ctx, email)
 }
@@ -55,12 +57,14 @@ type mockUserRepo struct {
 func (m *mockUserRepo) Save(ctx context.Context, user *userDomain.User) error {
 	return m.SaveFn(ctx, user)
 }
+
 func (m *mockUserRepo) Update(ctx context.Context, user *userDomain.User) error {
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ctx, user)
 	}
 	return nil
 }
+
 func (m *mockUserRepo) FindByID(ctx context.Context, id string) (*userDomain.User, error) {
 	return m.FindByIDFn(ctx, id)
 }
@@ -77,12 +81,15 @@ type mockStoreRepo struct {
 func (m *mockStoreRepo) Save(ctx context.Context, store *storeDomain.Store) error {
 	return m.SaveFn(ctx, store)
 }
+
 func (m *mockStoreRepo) FindByID(ctx context.Context, id string) (*storeDomain.Store, error) {
 	return m.FindByIDFn(ctx, id)
 }
+
 func (m *mockStoreRepo) FindAll(ctx context.Context, limit, offset int) ([]*storeDomain.Store, error) {
 	return m.FindAllFn(ctx, limit, offset)
 }
+
 func (m *mockStoreRepo) Update(ctx context.Context, store *storeDomain.Store) error {
 	return m.UpdateFn(ctx, store)
 }
@@ -93,8 +100,8 @@ type mockHasher struct {
 	CompareFn func(hashed, plain string) error
 }
 
-func (m *mockHasher) Hash(password string) (string, error)     { return m.HashFn(password) }
-func (m *mockHasher) Compare(hashed, plain string) error       { return m.CompareFn(hashed, plain) }
+func (m *mockHasher) Hash(password string) (string, error) { return m.HashFn(password) }
+func (m *mockHasher) Compare(hashed, plain string) error   { return m.CompareFn(hashed, plain) }
 
 type mockTokenGen struct {
 	GenerateFn func(authID string, accountType authDomain.AccountType, accountID string) (string, error)

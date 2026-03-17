@@ -51,7 +51,9 @@ func (r *StorePostgresRepository) FindAll(ctx context.Context, limit, offset int
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() //nolint:errcheck
+	}()
 
 	var stores []*domain.Store
 	for rows.Next() {

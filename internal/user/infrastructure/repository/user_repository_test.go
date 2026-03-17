@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/testutil"
 	userDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/user/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure/repository"
-	"github.com/LautaroBlasco23/lauti-market-backend/internal/testutil"
 )
 
 func TestUserRepository_Save_FindByID(t *testing.T) {

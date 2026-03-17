@@ -11,5 +11,7 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
-	conn.Close()
+	if err := conn.Close(); err != nil {
+		os.Exit(1)
+	}
 }

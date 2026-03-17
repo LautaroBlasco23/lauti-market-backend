@@ -159,7 +159,7 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*LoginOutput
 		return nil, apiDomain.ErrInvalidCredentials
 	}
 
-	if err := s.hasher.Compare(auth.Password(), input.Password); err != nil {
+	if compareErr := s.hasher.Compare(auth.Password(), input.Password); compareErr != nil {
 		return nil, apiDomain.ErrInvalidCredentials
 	}
 

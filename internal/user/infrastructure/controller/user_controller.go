@@ -78,7 +78,7 @@ func (h *UserController) Update(w http.ResponseWriter, r *http.Request) {
 	if err := infrastructure.Validate(req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
 			"error":  "invalid_payload",
 			"fields": infrastructure.FieldErrors(err),
 		})
@@ -134,7 +134,7 @@ func (h *UserController) Delete(w http.ResponseWriter, r *http.Request) {
 func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data) //nolint:errcheck
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {

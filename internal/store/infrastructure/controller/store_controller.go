@@ -44,7 +44,7 @@ func (h *StoreController) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(toStoreResponse(store))
+	_ = json.NewEncoder(w).Encode(toStoreResponse(store)) //nolint:errcheck
 }
 
 func (h *StoreController) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +60,7 @@ func (h *StoreController) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response) //nolint:errcheck
 }
 
 func (h *StoreController) Update(w http.ResponseWriter, r *http.Request) {
@@ -93,7 +93,7 @@ func (h *StoreController) Update(w http.ResponseWriter, r *http.Request) {
 	if err := infrastructure.Validate(req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
 			"error":  "invalid_payload",
 			"fields": infrastructure.FieldErrors(err),
 		})
@@ -113,7 +113,7 @@ func (h *StoreController) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(toStoreResponse(store))
+	_ = json.NewEncoder(w).Encode(toStoreResponse(store)) //nolint:errcheck
 }
 
 func (h *StoreController) Delete(w http.ResponseWriter, r *http.Request) {

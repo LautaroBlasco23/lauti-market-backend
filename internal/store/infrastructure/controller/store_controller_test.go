@@ -16,8 +16,8 @@ import (
 	authDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/domain"
 	authUtils "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/utils"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/application"
-	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure/controller"
 	storeDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure/controller"
 )
 
 // --- Mocks ---
@@ -33,12 +33,15 @@ type mockStoreRepo struct {
 func (m *mockStoreRepo) Save(ctx context.Context, store *storeDomain.Store) error {
 	return m.SaveFn(ctx, store)
 }
+
 func (m *mockStoreRepo) FindByID(ctx context.Context, id string) (*storeDomain.Store, error) {
 	return m.FindByIDFn(ctx, id)
 }
+
 func (m *mockStoreRepo) FindAll(ctx context.Context, limit, offset int) ([]*storeDomain.Store, error) {
 	return m.FindAllFn(ctx, limit, offset)
 }
+
 func (m *mockStoreRepo) Update(ctx context.Context, store *storeDomain.Store) error {
 	return m.UpdateFn(ctx, store)
 }

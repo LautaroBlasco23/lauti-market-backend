@@ -160,4 +160,3 @@ func TestDelete_NotFound(t *testing.T) {
 	err := svc.Delete(context.Background(), "id-1")
 	assert.ErrorIs(t, err, domain.ErrUserNotFound)
 }
-

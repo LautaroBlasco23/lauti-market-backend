@@ -72,7 +72,9 @@ func (r *ProductPostgresRepository) FindAll(ctx context.Context, limit, offset i
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() //nolint:errcheck
+	}()
 
 	var products []*domain.Product
 	for rows.Next() {
@@ -98,7 +100,9 @@ func (r *ProductPostgresRepository) FindByStoreID(ctx context.Context, storeID s
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close() //nolint:errcheck
+	}()
 
 	var products []*domain.Product
 	for rows.Next() {

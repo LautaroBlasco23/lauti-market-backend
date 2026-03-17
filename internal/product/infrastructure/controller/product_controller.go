@@ -62,13 +62,13 @@ func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stock, err := strconv.Atoi(r.FormValue("stock"))
-	if err != nil {
+	stock, stockErr := strconv.Atoi(r.FormValue("stock"))
+	if stockErr != nil {
 		http.Error(w, "invalid stock value", http.StatusBadRequest)
 		return
 	}
-	price, err := strconv.ParseFloat(r.FormValue("price"), 64)
-	if err != nil {
+	price, priceErr := strconv.ParseFloat(r.FormValue("price"), 64)
+	if priceErr != nil {
 		http.Error(w, "invalid price value", http.StatusBadRequest)
 		return
 	}
@@ -81,12 +81,12 @@ func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) {
 		Price:       price,
 	}
 
-	if err := infrastructure.Validate(req); err != nil {
+	if validateErr := infrastructure.Validate(req); validateErr != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
 			"error":  "invalid_payload",
-			"fields": infrastructure.FieldErrors(err),
+			"fields": infrastructure.FieldErrors(validateErr),
 		})
 		return
 	}
@@ -102,9 +102,11 @@ func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) {
 
 	file, header, err := r.FormFile("image")
 	if err == nil {
-		defer file.Close()
-		data, err := io.ReadAll(file)
-		if err != nil {
+		defer func() {
+			_ = file.Close() //nolint:errcheck
+		}()
+		data, readErr := io.ReadAll(file)
+		if readErr != nil {
 			http.Error(w, "failed to read image", http.StatusInternalServerError)
 			return
 		}
@@ -125,7 +127,7 @@ func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(toProductResponse(product))
+	_ = json.NewEncoder(w).Encode(toProductResponse(product)) //nolint:errcheck
 }
 
 func (c *ProductController) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -142,7 +144,7 @@ func (c *ProductController) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(toProductResponse(product))
+	_ = json.NewEncoder(w).Encode(toProductResponse(product)) //nolint:errcheck
 }
 
 func (c *ProductController) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -183,7 +185,7 @@ func (c *ProductController) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(dto.ProductListResponse{
+	_ = json.NewEncoder(w).Encode(dto.ProductListResponse{ //nolint:errcheck
 		Products: responses,
 		Limit:    limit,
 		Offset:   offset,
@@ -209,7 +211,7 @@ func (c *ProductController) GetByStoreID(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response) //nolint:errcheck
 }
 
 func (c *ProductController) Update(w http.ResponseWriter, r *http.Request) {
@@ -243,7 +245,7 @@ func (c *ProductController) Update(w http.ResponseWriter, r *http.Request) {
 	if err := infrastructure.Validate(req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
 			"error":  "invalid_payload",
 			"fields": infrastructure.FieldErrors(err),
 		})
@@ -265,7 +267,7 @@ func (c *ProductController) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(toProductResponse(product))
+	_ = json.NewEncoder(w).Encode(toProductResponse(product)) //nolint:errcheck
 }
 
 func (c *ProductController) Delete(w http.ResponseWriter, r *http.Request) {
@@ -329,7 +331,9 @@ func (c *ProductController) UploadImage(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "missing image field", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close() //nolint:errcheck
+	}()
 	data, err := io.ReadAll(file)
 	if err != nil {
 		http.Error(w, "failed to read image", http.StatusInternalServerError)
@@ -348,7 +352,7 @@ func (c *ProductController) UploadImage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(toProductResponse(product))
+	_ = json.NewEncoder(w).Encode(toProductResponse(product)) //nolint:errcheck
 }
 
 func (c *ProductController) handleError(w http.ResponseWriter, err error) {

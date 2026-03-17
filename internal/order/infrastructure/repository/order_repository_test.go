@@ -16,9 +16,9 @@ import (
 	productRepo "github.com/LautaroBlasco23/lauti-market-backend/internal/product/infrastructure/repository"
 	storeDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
 	storeRepo "github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure/repository"
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/testutil"
 	userDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/user/domain"
 	userRepo "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure/repository"
-	"github.com/LautaroBlasco23/lauti-market-backend/internal/testutil"
 )
 
 func makeTestOrder(orderID, userID, storeID, productID string) *orderDomain.Order {
