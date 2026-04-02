@@ -42,6 +42,7 @@ dev: db-up wait-db
 	ENV_FILE=.env air -c .air.toml
 
 start:
+	@bash scripts/setupEnv.sh
 	@echo ""
 	@echo "🚀 Select how to start the project:"
 	@echo "  1) Dev mode      - Go + air, local dbs, uses .env"
