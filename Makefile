@@ -39,7 +39,7 @@ wait-db:
 	@echo "✅ Databases ready"
 
 dev: db-up wait-db
-	ENV_FILE=.env air -c .air.toml
+	air -c .air.toml
 
 start:
 	@bash scripts/setupEnv.sh
