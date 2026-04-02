@@ -4,10 +4,10 @@ services:
     container_name: lauti-market-postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: lauti_market
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d
@@ -43,8 +43,9 @@ services:
       - "8080:8080"
     environment:
       - DB_HOST=postgres
+      - DB_PORT=5432
       - DB_USER=postgres
-      - DB_PASSWORD=postgres
+      - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=lauti_market
       - DB_SSLMODE=disable
       - PORT=:8080
