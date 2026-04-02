@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/LautaroBlasco23/lauti-market-backend/database"
+	"github.com/joho/godotenv"
 	apiInfrastructure "github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	authinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure"
 	authUtils "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/utils"
@@ -29,6 +30,8 @@ func main() {
 }
 
 func run() error {
+	_ = godotenv.Load()
+
 	postgres, err := database.NewPostgres(database.PostgresConfig{
 		Host:     getEnv("DB_HOST", "localhost"),
 		Port:     getEnvInt("DB_PORT", 5432),
