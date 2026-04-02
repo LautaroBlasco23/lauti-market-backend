@@ -15,6 +15,9 @@ make docker-down  # Stop full stack
 make db-up        # Start database services only (PostgreSQL + Redis)
 make db-down      # Stop database services
 
+# Data
+make inject-data  # Seed fake stores and products into the running app (go run ./cmd/seed)
+
 # Code quality
 make code-check   # Run gofumpt + golangci-lint
 make test         # Run tests with gotestsum (short-verbose format)
@@ -64,7 +67,8 @@ internal/
 ## Environment Variables
 
 ```
-DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_SSLMODE
+DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT, DB_SSLMODE
 JWT_SECRET
 PORT
+UNSPLASH_ACCESS_KEY   # optional — used by cmd/seed to attach product images
 ```

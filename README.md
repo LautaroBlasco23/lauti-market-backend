@@ -22,6 +22,7 @@ Each module exposes a `Wire()` function in `infrastructure/wiring.go` that initi
 - [golang-jwt/jwt](https://github.com/golang-jwt/jwt) - JWT tokens
 - [google/uuid](https://github.com/google/uuid) - ID generation
 - [x/crypto](https://pkg.go.dev/golang.org/x/crypto) - bcrypt password hashing
+- [joho/godotenv](https://github.com/joho/godotenv) - `.env` loading
 
 ## Run
 
@@ -39,7 +40,17 @@ make db-up
 make dev
 ```
 
-Server starts on `:8080`.
+Server starts on `:8080` (Docker) or the `PORT` env variable (default `:8000` in dev).
+
+### Seed fake data
+
+With the server running, inject sample stores and products:
+
+```bash
+make inject-data
+```
+
+Optionally set `UNSPLASH_ACCESS_KEY` in `.env` to attach real product images via the Unsplash API. A random suffix is appended to every run so it is safe to call multiple times.
 
 ## CI/CD
 
