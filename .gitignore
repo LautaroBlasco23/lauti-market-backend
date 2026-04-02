@@ -42,6 +42,7 @@ tmp/
 
 # Build artifacts
 *.log
+/seed
 
 # Fake data assets
 scripts/fake-data-images/
