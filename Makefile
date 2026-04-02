@@ -1,4 +1,4 @@
-.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-security wait-db start
+.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-security wait-db start inject-data
 .DEFAULT_GOAL := help
 
 help:
@@ -21,6 +21,9 @@ help:
 	@echo "    db-down            - Stop databases"
 	@echo "    db-remove          - Remove databases and volumes"
 	@echo "    wait-db            - Wait for databases to be ready"
+	@echo ""
+	@echo "  🌱 Data:"
+	@echo "    inject-data        - Seed fake stores and products into the running app"
 
 install-tools:
 	go install mvdan.cc/gofumpt@latest
@@ -93,6 +96,9 @@ db-down:
 
 db-remove:
 	docker compose -f docker-compose.db.yml down -v
+
+inject-data:
+	go run ./cmd/seed
 
 test:
 	gotestsum --format=short-verbose
