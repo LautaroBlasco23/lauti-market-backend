@@ -72,3 +72,18 @@ JWT_SECRET
 PORT
 UNSPLASH_ACCESS_KEY   # optional — used by cmd/seed to attach product images
 ```
+
+## Preflight
+
+**Ecosystem**: Go
+**Config**: go.mod, Makefile, .golangci.yml, .air.toml
+**Status**: ready
+
+| Category | Status | Command |
+|----------|--------|---------|
+| Build    | ready  | `make dev` (via air, go build) |
+| Check    | ready  | `make code-check` (gofumpt + golangci-lint) |
+| Test     | ready  | `make test` (gotestsum) |
+
+**Blockers**: none
+**Warnings**: none
