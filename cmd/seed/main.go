@@ -19,7 +19,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// sellerSeed holds the configuration for a store/seller account and its products.
+// sellerSeed holds the data needed to register a store and seed its catalog.
 type sellerSeed struct {
 	Email       string
 	Password    string
@@ -30,134 +30,196 @@ type sellerSeed struct {
 	Products    []productSeed
 }
 
-// productSeed holds the configuration for a single product.
+// productSeed holds a generated product instance ready to be POSTed.
 type productSeed struct {
 	Name        string
 	Description string
 	Category    string
 	Stock       int
 	Price       float64
+	ImageQuery  string // search term used against Unsplash for the product image
 }
 
-var sellers = []sellerSeed{
+// productTemplate is the blueprint a product instance is generated from.
+type productTemplate struct {
+	BaseName    string
+	ImageQuery  string
+	Description string
+	MinPrice    float64
+	MaxPrice    float64
+}
+
+// categoryDef groups everything needed to spin up a randomized seller of a given category.
+type categoryDef struct {
+	Name              string
+	StoreNames        []string
+	StoreDescriptions []string
+	Products          []productTemplate
+}
+
+var productAdjectives = []string{
+	"Premium", "Classic", "Modern", "Compact", "Pro", "Eco",
+	"Vintage", "Deluxe", "Essential", "Urban", "Smart", "Everyday",
+	"Heritage", "Signature", "Travel",
+}
+
+var modelCodes = []string{"X1", "X2", "Mk II", "Pro", "v2", "Plus", "Lite", "S", "Edge", "Air"}
+
+var cities = []string{
+	"Buenos Aires", "Cordoba", "Mendoza", "Rosario", "La Plata",
+	"Mar del Plata", "Salta", "Tucuman", "Bariloche", "Ushuaia",
+}
+
+var streets = []string{
+	"Av. Libertador", "Calle Florida", "Av. Corrientes", "Av. 9 de Julio",
+	"Av. Santa Fe", "Calle Defensa", "Calle Lavalle", "Av. de Mayo",
+}
+
+var categories = []categoryDef{
 	{
-		Email:       "lauti.electronics@example.com",
-		Password:    "securepass1",
-		Name:        "Lauti Electronics",
-		Description: "Your go-to store for quality electronics and accessories.",
-		Address:     "456 Tech Avenue, Buenos Aires",
-		PhoneNumber: "555-0101",
-		Products: []productSeed{
-			{
-				Name:        "Wireless Headphones",
-				Description: "Over-ear noise-cancelling wireless headphones with 30-hour battery life.",
-				Category:    "Audio",
-				Stock:       25,
-				Price:       89.99,
-			},
-			{
-				Name:        "USB-C Hub 7-in-1",
-				Description: "Compact hub with HDMI, USB-A, USB-C PD, SD card slot and more.",
-				Category:    "Accessories",
-				Stock:       40,
-				Price:       34.99,
-			},
-			{
-				Name:        "Mechanical Keyboard",
-				Description: "Compact tenkeyless mechanical keyboard with blue switches and RGB backlight.",
-				Category:    "Peripherals",
-				Stock:       15,
-				Price:       59.99,
-			},
-			{
-				Name:        "LED Desk Lamp",
-				Description: "Adjustable brightness LED desk lamp with USB charging port on the base.",
-				Category:    "Lighting",
-				Stock:       30,
-				Price:       24.99,
-			},
+		Name: "Electronics",
+		StoreNames: []string{
+			"Lauti Tech", "ByteHaven", "PixelForge", "CircuitWorks",
+			"VoltStreet", "GadgetHub", "NeonCircuit", "ChipBazaar",
+		},
+		StoreDescriptions: []string{
+			"Quality electronics, accessories and smart gadgets.",
+			"Your one-stop shop for everything tech.",
+			"Curated electronics from trusted brands.",
+		},
+		Products: []productTemplate{
+			{"Wireless Headphones", "wireless headphones", "Over-ear noise-cancelling headphones with long battery life.", 40, 220},
+			{"Bluetooth Speaker", "bluetooth speaker", "Portable speaker with rich sound and waterproof design.", 25, 180},
+			{"Mechanical Keyboard", "mechanical keyboard", "Tactile mechanical keyboard with hot-swappable switches.", 60, 200},
+			{"Gaming Mouse", "gaming mouse", "High-precision wired mouse with customizable buttons.", 20, 120},
+			{"USB-C Hub", "usb hub", "Multi-port hub with HDMI, USB-A and SD card support.", 25, 90},
+			{"Webcam 1080p", "webcam", "Full HD webcam with autofocus and built-in microphone.", 30, 130},
+			{"Smartwatch", "smartwatch", "Fitness-tracking smartwatch with heart rate monitor.", 80, 350},
+			{"Wireless Charger", "wireless charger", "Fast wireless charging pad compatible with most phones.", 15, 60},
+			{"LED Desk Lamp", "desk lamp", "Adjustable LED desk lamp with USB charging port.", 20, 80},
+			{"Portable SSD", "ssd", "High-speed external SSD with USB-C connectivity.", 50, 250},
 		},
 	},
 	{
-		Email:       "green.garden.supply@example.com",
-		Password:    "securepass2",
-		Name:        "Green Garden Supply",
-		Description: "Everything you need to grow and maintain a beautiful garden.",
-		Address:     "12 Botanical Road, Mendoza",
-		PhoneNumber: "555-0202",
-		Products: []productSeed{
-			{
-				Name:        "Organic Fertilizer 5kg",
-				Description: "All-natural organic fertilizer suitable for vegetables, flowers and shrubs.",
-				Category:    "Fertilizers",
-				Stock:       60,
-				Price:       18.50,
-			},
-			{
-				Name:        "Pruning Shears",
-				Description: "Stainless steel bypass pruning shears with ergonomic grip for clean cuts.",
-				Category:    "Tools",
-				Stock:       45,
-				Price:       14.99,
-			},
-			{
-				Name:        "Self-Watering Planter",
-				Description: "Modern self-watering planter with water reservoir for indoor plants.",
-				Category:    "Planters",
-				Stock:       20,
-				Price:       27.00,
-			},
-			{
-				Name:        "Heirloom Tomato Seeds",
-				Description: "Pack of 50 heirloom tomato seeds, non-GMO and open-pollinated variety.",
-				Category:    "Seeds",
-				Stock:       100,
-				Price:       4.99,
-			},
-			{
-				Name:        "Garden Kneeling Pad",
-				Description: "Thick foam kneeling pad that protects knees while gardening on hard ground.",
-				Category:    "Accessories",
-				Stock:       35,
-				Price:       9.99,
-			},
+		Name: "Garden",
+		StoreNames: []string{
+			"Green Garden Supply", "Verde Botanical", "EarthRoot",
+			"BloomYard", "Wildleaf Co", "FernHaven", "Patio and Petal",
+		},
+		StoreDescriptions: []string{
+			"Everything you need to grow a beautiful garden.",
+			"Tools, seeds and supplies for plant lovers.",
+			"Sustainable gardening essentials sourced with care.",
+		},
+		Products: []productTemplate{
+			{"Organic Fertilizer", "fertilizer", "All-natural fertilizer for vegetables, flowers and shrubs.", 10, 40},
+			{"Pruning Shears", "pruning shears", "Stainless steel bypass pruners with ergonomic grip.", 12, 50},
+			{"Self-Watering Planter", "planter pot", "Modern planter with built-in water reservoir.", 15, 70},
+			{"Garden Hose 25ft", "garden hose", "Flexible reinforced hose with brass fittings.", 20, 80},
+			{"Heirloom Seeds Pack", "seeds packet", "Non-GMO open-pollinated heirloom variety seeds.", 3, 15},
+			{"Garden Gloves", "gardening gloves", "Durable gloves with reinforced fingertips.", 6, 25},
+			{"Hand Trowel", "garden trowel", "Lightweight hand trowel for digging and transplanting.", 8, 30},
+			{"Watering Can 5L", "watering can", "Galvanized steel watering can with long spout.", 14, 45},
+			{"Compost Bin", "compost bin", "Odor-controlled kitchen compost bin.", 25, 90},
+			{"Bamboo Plant Stakes", "plant stakes", "Pack of natural bamboo stakes for climbing plants.", 5, 20},
 		},
 	},
 	{
-		Email:       "urban.bookshelf@example.com",
-		Password:    "securepass3",
-		Name:        "Urban Bookshelf",
-		Description: "A curated selection of books, stationery and reading accessories.",
-		Address:     "88 Literary Lane, Cordoba",
-		PhoneNumber: "555-0303",
-		Products: []productSeed{
-			{
-				Name:        "Leather Journal A5",
-				Description: "Handcrafted genuine leather journal with 200 pages of acid-free paper.",
-				Category:    "Stationery",
-				Stock:       50,
-				Price:       22.00,
-			},
-			{
-				Name:        "Bamboo Book Stand",
-				Description: "Adjustable bamboo book stand keeps books open hands-free while reading.",
-				Category:    "Accessories",
-				Stock:       18,
-				Price:       16.99,
-			},
-			{
-				Name:        "Highlighter Set 8 Colors",
-				Description: "Chisel tip highlighters in 8 vibrant colors, smear-proof and quick-drying.",
-				Category:    "Stationery",
-				Stock:       75,
-				Price:       8.49,
-			},
+		Name: "Books",
+		StoreNames: []string{
+			"Urban Bookshelf", "Inkwell and Co", "PageTurner",
+			"Margin Press", "Foliant Books", "ChapterOne",
+		},
+		StoreDescriptions: []string{
+			"A curated selection of books and stationery.",
+			"Reading and writing essentials for every desk.",
+			"Independent bookshop with handpicked titles.",
+		},
+		Products: []productTemplate{
+			{"Leather Journal", "leather journal", "Handcrafted leather journal with acid-free paper.", 15, 60},
+			{"Bamboo Book Stand", "book stand", "Adjustable book stand for hands-free reading.", 12, 45},
+			{"Highlighter Set", "highlighters", "Chisel-tip highlighters in vibrant colors.", 5, 20},
+			{"Fountain Pen", "fountain pen", "Smooth-writing fountain pen with refillable converter.", 25, 150},
+			{"Notebook A5", "notebook", "Dot-grid notebook with soft-touch cover.", 8, 30},
+			{"Reading Light", "reading light", "Clip-on LED reading light with adjustable arm.", 10, 40},
+			{"Bookmark Set", "bookmark", "Set of metal bookmarks with elegant designs.", 4, 18},
+			{"Desk Organizer", "desk organizer", "Wooden desk organizer with multiple compartments.", 18, 70},
+			{"Watercolor Set", "watercolor paint", "Travel watercolor set with brush and palette.", 15, 80},
+		},
+	},
+	{
+		Name: "Kitchen",
+		StoreNames: []string{
+			"Copper and Clay", "HearthGoods", "Saucepan Society",
+			"The Whisk Room", "Larder Lane", "Brass Spoon Co",
+		},
+		StoreDescriptions: []string{
+			"Cookware and kitchen tools for the home chef.",
+			"Quality kitchen essentials, sourced with care.",
+			"Everything you need for cooking and entertaining.",
+		},
+		Products: []productTemplate{
+			{"Chef's Knife", "chef knife", "High-carbon steel chef's knife with riveted handle.", 25, 200},
+			{"Cutting Board", "cutting board", "Hardwood cutting board with juice groove.", 20, 90},
+			{"Cast Iron Skillet", "cast iron skillet", "Pre-seasoned cast iron skillet, oven-safe.", 30, 120},
+			{"Mixing Bowl Set", "mixing bowls", "Stainless steel nesting mixing bowls.", 25, 80},
+			{"Wooden Spatula", "wooden spatula", "Hand-carved wooden spatula, gentle on cookware.", 6, 25},
+			{"Linen Apron", "kitchen apron", "Adjustable linen apron with front pocket.", 18, 60},
+			{"French Press", "french press", "Borosilicate glass French press coffee maker.", 22, 80},
+			{"Spice Rack", "spice rack", "Bamboo spice rack with labeled jars.", 25, 90},
+			{"Pasta Maker", "pasta maker", "Manual pasta machine with adjustable thickness.", 40, 180},
+		},
+	},
+	{
+		Name: "Fashion",
+		StoreNames: []string{
+			"Threadwood", "Atelier Norte", "Linen and Loom",
+			"Kindred Goods", "WoolWeft", "MarchStreet",
+		},
+		StoreDescriptions: []string{
+			"Timeless apparel and accessories.",
+			"Independent fashion for everyday wear.",
+			"Curated wardrobe staples and accessories.",
+		},
+		Products: []productTemplate{
+			{"Cotton T-Shirt", "tshirt", "Soft organic cotton tee in classic fit.", 15, 60},
+			{"Wool Beanie", "beanie hat", "Cozy merino wool beanie in solid colors.", 18, 55},
+			{"Leather Wallet", "leather wallet", "Slim leather wallet with RFID protection.", 25, 120},
+			{"Canvas Backpack", "canvas backpack", "Durable canvas backpack with padded laptop sleeve.", 35, 150},
+			{"Sunglasses", "sunglasses", "Polarized sunglasses with UV protection.", 25, 180},
+			{"Knit Scarf", "knit scarf", "Hand-knit scarf in soft alpaca blend.", 20, 90},
+			{"Leather Belt", "leather belt", "Full-grain leather belt with brass buckle.", 30, 120},
+			{"Field Watch", "wristwatch", "Minimalist field watch with leather strap.", 60, 300},
+		},
+	},
+	{
+		Name: "Home",
+		StoreNames: []string{
+			"Hearth and Hue", "Maison Quinta", "Loft Goods",
+			"Quietude Home", "Soft Habit", "DwellRoom",
+		},
+		StoreDescriptions: []string{
+			"Home goods that bring warmth to any space.",
+			"Furniture, lighting and decor for modern living.",
+			"Curated objects for the well-lived home.",
+		},
+		Products: []productTemplate{
+			{"Linen Cushion", "cushion", "Stonewashed linen cushion cover with hidden zip.", 20, 80},
+			{"Throw Blanket", "throw blanket", "Soft woven throw in neutral tones.", 30, 140},
+			{"Ceramic Vase", "ceramic vase", "Handmade stoneware vase with matte finish.", 25, 120},
+			{"Soy Candle", "scented candle", "Hand-poured soy candle with essential oils.", 15, 55},
+			{"Wall Mirror", "wall mirror", "Round mirror with brass frame.", 40, 200},
+			{"Rattan Basket", "rattan basket", "Woven rattan storage basket with handles.", 25, 90},
+			{"Floor Lamp", "floor lamp", "Tripod floor lamp with linen shade.", 60, 280},
+			{"Photo Frame Set", "photo frame", "Set of three matching wooden photo frames.", 18, 75},
 		},
 	},
 }
 
 func main() {
 	_ = godotenv.Load()
+
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	baseURL := flag.String("base-url", "http://localhost:8000", "Base URL of the running backend")
 	flag.Parse()
@@ -180,28 +242,24 @@ func main() {
 	}
 	log.Println("Server is reachable. Starting seed...")
 
-	suffix := fmt.Sprintf("%05d", rand.Intn(100000))
+	suffix := fmt.Sprintf("%05d", rng.Intn(100000))
 	log.Printf("Run suffix: %s", suffix)
+
+	sellers := generateSellers(rng, suffix)
+	log.Printf("Generated %d random sellers for this run", len(sellers))
 
 	var totalStores, totalProducts, failedStores, failedProducts int
 
 	for _, seller := range sellers {
-		s := seller
-		// inject suffix so each run produces unique emails and names
-		s.Email = strings.Replace(s.Email, "@", "+"+suffix+"@", 1)
-		s.Name = s.Name + " " + suffix
-
-		accountID, ok := registerStore(client, *baseURL, s)
+		accountID, ok := registerStore(client, *baseURL, seller)
 		if !ok {
 			failedStores++
 			continue
 		}
 		totalStores++
 
-		for _, product := range s.Products {
-			p := product
-			p.Name = p.Name + " " + suffix
-			if createProduct(client, *baseURL, accountID, p, unsplashKey) {
+		for _, product := range seller.Products {
+			if createProduct(client, *baseURL, accountID, product, unsplashKey) {
 				totalProducts++
 			} else {
 				failedProducts++
@@ -212,6 +270,80 @@ func main() {
 	fmt.Println()
 	log.Printf("Seed complete: %d stores created (%d failed), %d products created (%d failed)",
 		totalStores, failedStores, totalProducts, failedProducts)
+}
+
+// generateSellers builds a randomized list of 3-5 sellers, each from a distinct category.
+func generateSellers(rng *rand.Rand, suffix string) []sellerSeed {
+	n := 3 + rng.Intn(3) // 3, 4 or 5
+	if n > len(categories) {
+		n = len(categories)
+	}
+
+	perm := rng.Perm(len(categories))[:n]
+	out := make([]sellerSeed, 0, n)
+	for i, idx := range perm {
+		out = append(out, generateSeller(rng, categories[idx], suffix, i))
+	}
+	return out
+}
+
+// generateSeller picks a random store name, address and 6-9 products from the category pool.
+func generateSeller(rng *rand.Rand, cat categoryDef, suffix string, index int) sellerSeed {
+	storeName := cat.StoreNames[rng.Intn(len(cat.StoreNames))]
+	description := cat.StoreDescriptions[rng.Intn(len(cat.StoreDescriptions))]
+
+	slug := strings.ToLower(storeName)
+	slug = strings.ReplaceAll(slug, " ", ".")
+	email := fmt.Sprintf("%s+%s%d@example.com", slug, suffix, index)
+
+	address := fmt.Sprintf("%s %d, %s",
+		streets[rng.Intn(len(streets))],
+		100+rng.Intn(9000),
+		cities[rng.Intn(len(cities))],
+	)
+	phone := fmt.Sprintf("555-%04d", rng.Intn(10000))
+
+	productCount := 6 + rng.Intn(4) // 6, 7, 8 or 9
+	products := generateProducts(rng, cat, productCount)
+
+	return sellerSeed{
+		Email:       email,
+		Password:    "securepass1",
+		Name:        storeName,
+		Description: description,
+		Address:     address,
+		PhoneNumber: phone,
+		Products:    products,
+	}
+}
+
+// generateProducts picks N distinct templates from the category and decorates each
+// with a random adjective + model code so names rarely collide across runs.
+func generateProducts(rng *rand.Rand, cat categoryDef, n int) []productSeed {
+	if n > len(cat.Products) {
+		n = len(cat.Products)
+	}
+	perm := rng.Perm(len(cat.Products))[:n]
+	out := make([]productSeed, 0, n)
+	for _, idx := range perm {
+		tmpl := cat.Products[idx]
+		adj := productAdjectives[rng.Intn(len(productAdjectives))]
+		model := modelCodes[rng.Intn(len(modelCodes))]
+		name := fmt.Sprintf("%s %s %s", adj, tmpl.BaseName, model)
+
+		price := tmpl.MinPrice + rng.Float64()*(tmpl.MaxPrice-tmpl.MinPrice)
+		price = float64(int(price)) + 0.99 // round to .99
+
+		out = append(out, productSeed{
+			Name:        name,
+			Description: tmpl.Description,
+			Category:    cat.Name,
+			Stock:       10 + rng.Intn(91), // 10..100
+			Price:       price,
+			ImageQuery:  tmpl.ImageQuery,
+		})
+	}
+	return out
 }
 
 // registerStore POSTs to /auth/register/store and returns the account_id on success.
@@ -246,7 +378,7 @@ func registerStore(client *http.Client, baseURL string, seller sellerSeed) (stri
 }
 
 // createProduct POSTs multipart form data to /stores/{storeID}/products, then
-// patches the image_url via PUT if an Unsplash photo is found.
+// patches the image_url via PUT if Unsplash returns a random photo for the query.
 func createProduct(client *http.Client, baseURL, storeID string, product productSeed, unsplashKey string) bool {
 	fields := map[string]string{
 		"name":        product.Name,
@@ -274,7 +406,7 @@ func createProduct(client *http.Client, baseURL, storeID string, product product
 		return true
 	}
 
-	imageURL, err := fetchUnsplashURL(client, unsplashKey, product.Name)
+	imageURL, err := fetchUnsplashURL(client, unsplashKey, product.ImageQuery)
 	if err != nil {
 		log.Printf("[product] WARNING: failed to fetch image for %q: %v", product.Name, err)
 		return true
@@ -302,10 +434,11 @@ func createProduct(client *http.Client, baseURL, storeID string, product product
 	return true
 }
 
-// fetchUnsplashURL queries the Unsplash Search Photos API and returns the URL
-// of the first result's regular-sized image. Returns "" when no results found.
+// fetchUnsplashURL queries the Unsplash Random Photo API and returns the URL of
+// a random photo matching the query. Each call returns a different photo even
+// for the same query, which is what gives the seed its visual variety.
 func fetchUnsplashURL(client *http.Client, accessKey, query string) (string, error) {
-	apiURL := "https://api.unsplash.com/search/photos?query=" + url.QueryEscape(query) + "&per_page=1"
+	apiURL := "https://api.unsplash.com/photos/random?query=" + url.QueryEscape(query) + "&orientation=squarish"
 
 	req, err := http.NewRequest(http.MethodGet, apiURL, nil)
 	if err != nil {
@@ -319,22 +452,23 @@ func fetchUnsplashURL(client *http.Client, accessKey, query string) (string, err
 	}
 	defer resp.Body.Close()
 
-	var apiResp struct {
-		Results []struct {
-			URLs struct {
-				Regular string `json:"regular"`
-			} `json:"urls"`
-		} `json:"results"`
+	// Unsplash returns 404 when no photo matches the query.
+	if resp.StatusCode == http.StatusNotFound {
+		return "", nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unsplash returned status %d", resp.StatusCode)
 	}
 
+	var apiResp struct {
+		URLs struct {
+			Regular string `json:"regular"`
+		} `json:"urls"`
+	}
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
 		return "", fmt.Errorf("decoding unsplash response: %w", err)
 	}
-
-	if len(apiResp.Results) == 0 {
-		return "", nil
-	}
-	return apiResp.Results[0].URLs.Regular, nil
+	return apiResp.URLs.Regular, nil
 }
 
 // postMultipart sends a multipart/form-data POST request with the given fields.
