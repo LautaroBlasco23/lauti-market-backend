@@ -22,9 +22,6 @@ make test-security # Start full Docker stack + run ASVS security tests (cmd/secu
 
 # Install dev tools
 make install-tools  # Install gofumpt, golangci-lint, air, gotestsum
-
-# Scripts
-make download-images  # Download random product images from Unsplash (requires UNSPLASH_ACCESS_KEY)
 ```
 
 ### Running tests selectively
@@ -107,7 +104,7 @@ DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_SSLMODE
 JWT_SECRET
 IMAGE_STORE_ADDR      (gRPC address for image service, default: localhost:50051)
 PORT
-UNSPLASH_ACCESS_KEY   (optional; used by download-images script and fake-data-creator.sh)
+UNSPLASH_ACCESS_KEY   (optional; used by fake-data-creator.sh)
 ```
 
 ## Preflight

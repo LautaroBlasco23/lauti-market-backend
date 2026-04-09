@@ -1,4 +1,4 @@
-.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-coverage test-security wait-db download-images
+.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-coverage test-security wait-db
 .DEFAULT_GOAL := help
 
 help:
@@ -24,7 +24,6 @@ help:
 	@echo ""
 	@echo "  🌱 Data:"
 	@echo "    inject-data        - Seed fake stores and products into the running app"
-	@echo "    download-images    - Download random product images from Unsplash"
 
 install-tools:
 	go install mvdan.cc/gofumpt@latest
@@ -74,10 +73,6 @@ test:
 
 test-coverage:
 	go test ./... -coverprofile=coverage.out && go tool cover -html=coverage.out
-
-download-images:
-	@[ -f .env ] || (echo ".env not found"; exit 1)
-	set -a && . ./.env && set +a && go run scripts/download-images.go $(ARGS)
 
 test-security:
 	@echo "🧹 Cleaning up previous state..."
