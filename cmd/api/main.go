@@ -71,7 +71,7 @@ func run() error {
 	authinfra.Wire(mux, db, uuidGen, userModule, storeModule, authUtils.JwtConfig{
 		JWTSecret:     jwtSecret,
 		JWTExpiration: 24 * time.Hour,
-	})
+	}, authMw)
 
 	imageModule, imgErr := imageinfra.Wire(getEnv("IMAGE_STORE_ADDR", "localhost:50051"))
 	if imgErr != nil {

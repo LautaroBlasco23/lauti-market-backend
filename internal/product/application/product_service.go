@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	imageDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/image/domain"
@@ -55,14 +56,30 @@ type GetAllProductsInput struct {
 }
 
 func (s *ProductService) Create(ctx context.Context, input *CreateProductInput) (*domain.Product, error) {
+	slog.Debug("ProductService.Create started",
+		slog.String("store_id", input.StoreID),
+		slog.String("name", input.Name),
+		slog.String("category", input.Category),
+	)
+
 	if _, err := s.storeRepo.FindByID(ctx, input.StoreID); err != nil {
+		slog.Error("ProductService.Create failed",
+			slog.String("operation", "find_store_by_id"),
+			slog.String("store_id", input.StoreID),
+			slog.Any("error", err),
+		)
 		return nil, err
 	}
 
 	id := s.idGen.Generate()
+	slog.Debug("ProductService.Create generated product ID", slog.String("product_id", id))
 
 	var imageURL *string
 	if len(input.ImageData) > 0 {
+		slog.Debug("ProductService.Create uploading image",
+			slog.String("filename", input.ImageFilename),
+			slog.Int("data_size", len(input.ImageData)),
+		)
 		result, err := s.imageClient.UploadImage(ctx, imageDomain.UploadImageInput{
 			UserID:      id,
 			Filename:    input.ImageFilename,
@@ -70,6 +87,11 @@ func (s *ProductService) Create(ctx context.Context, input *CreateProductInput) 
 			Data:        input.ImageData,
 		})
 		if err != nil {
+			slog.Error("ProductService.Create failed",
+				slog.String("operation", "upload_image"),
+				slog.String("filename", input.ImageFilename),
+				slog.Any("error", err),
+			)
 			return nil, fmt.Errorf("uploading image: %w", err)
 		}
 		imageURL = &result.URL
@@ -77,21 +99,50 @@ func (s *ProductService) Create(ctx context.Context, input *CreateProductInput) 
 
 	product, err := domain.NewProduct(id, input.StoreID, input.Name, input.Description, input.Category, input.Stock, input.Price, imageURL)
 	if err != nil {
+		slog.Error("ProductService.Create failed",
+			slog.String("operation", "create_product_domain"),
+			slog.Any("error", err),
+		)
 		return nil, err
 	}
 
+	slog.Debug("ProductService.Create saving product to repository", slog.String("product_id", id))
 	if err := s.repo.Save(ctx, product); err != nil {
+		slog.Error("ProductService.Create failed",
+			slog.String("operation", "save_product"),
+			slog.String("product_id", id),
+			slog.Any("error", err),
+		)
 		return nil, err
 	}
 
+	slog.Info("ProductService.Create completed", slog.String("product_id", product.ID()))
 	return product, nil
 }
 
 func (s *ProductService) GetByID(ctx context.Context, id string) (*domain.Product, error) {
-	return s.repo.FindByID(ctx, id)
+	slog.Debug("ProductService.GetByID started", slog.String("product_id", id))
+
+	product, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		slog.Error("ProductService.GetByID failed",
+			slog.String("operation", "find_by_id"),
+			slog.String("product_id", id),
+			slog.Any("error", err),
+		)
+		return nil, err
+	}
+
+	slog.Info("ProductService.GetByID completed", slog.String("product_id", id))
+	return product, nil
 }
 
 func (s *ProductService) GetAll(ctx context.Context, input GetAllProductsInput) ([]*domain.Product, error) {
+	slog.Debug("ProductService.GetAll started",
+		slog.Int("limit", input.Limit),
+		slog.Int("offset", input.Offset),
+	)
+
 	if input.Limit <= 0 {
 		input.Limit = 10
 	}
@@ -99,11 +150,36 @@ func (s *ProductService) GetAll(ctx context.Context, input GetAllProductsInput) 
 		input.Offset = 0
 	}
 
-	return s.repo.FindAll(ctx, input.Limit, input.Offset, input.Category)
+	slog.Debug("ProductService.GetAll querying repository",
+		slog.Int("limit", input.Limit),
+		slog.Int("offset", input.Offset),
+	)
+	products, err := s.repo.FindAll(ctx, input.Limit, input.Offset, input.Category)
+	if err != nil {
+		slog.Error("ProductService.GetAll failed",
+			slog.String("operation", "find_all"),
+			slog.Any("error", err),
+		)
+		return nil, err
+	}
+
+	slog.Info("ProductService.GetAll completed", slog.Int("count", len(products)))
+	return products, nil
 }
 
 func (s *ProductService) GetByStoreID(ctx context.Context, storeID string, limit, offset int) ([]*domain.Product, error) {
+	slog.Debug("ProductService.GetByStoreID started",
+		slog.String("store_id", storeID),
+		slog.Int("limit", limit),
+		slog.Int("offset", offset),
+	)
+
 	if _, err := s.storeRepo.FindByID(ctx, storeID); err != nil {
+		slog.Error("ProductService.GetByStoreID failed",
+			slog.String("operation", "find_store_by_id"),
+			slog.String("store_id", storeID),
+			slog.Any("error", err),
+		)
 		return nil, err
 	}
 
@@ -114,28 +190,78 @@ func (s *ProductService) GetByStoreID(ctx context.Context, storeID string, limit
 		offset = 0
 	}
 
-	return s.repo.FindByStoreID(ctx, storeID, limit, offset)
+	slog.Debug("ProductService.GetByStoreID querying repository",
+		slog.String("store_id", storeID),
+		slog.Int("limit", limit),
+		slog.Int("offset", offset),
+	)
+	products, err := s.repo.FindByStoreID(ctx, storeID, limit, offset)
+	if err != nil {
+		slog.Error("ProductService.GetByStoreID failed",
+			slog.String("operation", "find_by_store_id"),
+			slog.String("store_id", storeID),
+			slog.Any("error", err),
+		)
+		return nil, err
+	}
+
+	slog.Info("ProductService.GetByStoreID completed",
+		slog.String("store_id", storeID),
+		slog.Int("count", len(products)),
+	)
+	return products, nil
 }
 
 func (s *ProductService) Update(ctx context.Context, input *UpdateProductInput) (*domain.Product, error) {
+	slog.Debug("ProductService.Update started", slog.String("product_id", input.ID))
+
 	product, err := s.repo.FindByID(ctx, input.ID)
 	if err != nil {
+		slog.Error("ProductService.Update failed",
+			slog.String("operation", "find_by_id"),
+			slog.String("product_id", input.ID),
+			slog.Any("error", err),
+		)
 		return nil, err
 	}
 
 	if err := product.Update(input.Name, input.Description, input.Category, input.Stock, input.Price, input.ImageURL); err != nil {
+		slog.Error("ProductService.Update failed",
+			slog.String("operation", "update_product_domain"),
+			slog.String("product_id", input.ID),
+			slog.Any("error", err),
+		)
 		return nil, err
 	}
 
+	slog.Debug("ProductService.Update saving to repository", slog.String("product_id", input.ID))
 	if err := s.repo.Update(ctx, product); err != nil {
+		slog.Error("ProductService.Update failed",
+			slog.String("operation", "update_repository"),
+			slog.String("product_id", input.ID),
+			slog.Any("error", err),
+		)
 		return nil, err
 	}
 
+	slog.Info("ProductService.Update completed", slog.String("product_id", product.ID()))
 	return product, nil
 }
 
 func (s *ProductService) Delete(ctx context.Context, id string) error {
-	return s.repo.Delete(ctx, id)
+	slog.Debug("ProductService.Delete started", slog.String("product_id", id))
+
+	if err := s.repo.Delete(ctx, id); err != nil {
+		slog.Error("ProductService.Delete failed",
+			slog.String("operation", "delete"),
+			slog.String("product_id", id),
+			slog.Any("error", err),
+		)
+		return err
+	}
+
+	slog.Info("ProductService.Delete completed", slog.String("product_id", id))
+	return nil
 }
 
 type UploadProductImageInput struct {
@@ -147,22 +273,58 @@ type UploadProductImageInput struct {
 }
 
 func (s *ProductService) UploadImage(ctx context.Context, input *UploadProductImageInput) (*domain.Product, error) {
+	slog.Debug("ProductService.UploadImage started",
+		slog.String("product_id", input.ProductID),
+		slog.String("filename", input.Filename),
+	)
+
 	product, err := s.repo.FindByID(ctx, input.ProductID)
 	if err != nil {
+		slog.Error("ProductService.UploadImage failed",
+			slog.String("operation", "find_by_id"),
+			slog.String("product_id", input.ProductID),
+			slog.Any("error", err),
+		)
 		return nil, err
 	}
+
+	slog.Debug("ProductService.UploadImage uploading to image service",
+		slog.String("product_id", input.ProductID),
+		slog.Int("data_size", len(input.Data)),
+	)
 	result, err := s.imageClient.UploadImage(ctx, imageDomain.UploadImageInput{
 		UserID: input.ProductID, Filename: input.Filename,
 		ContentType: input.ContentType, Data: input.Data,
 	})
 	if err != nil {
+		slog.Error("ProductService.UploadImage failed",
+			slog.String("operation", "upload_image"),
+			slog.String("product_id", input.ProductID),
+			slog.String("filename", input.Filename),
+			slog.Any("error", err),
+		)
 		return nil, fmt.Errorf("uploading image: %w", err)
 	}
+
 	if err := product.Update(product.Name(), product.Description(), product.Category(), product.Stock(), product.Price(), &result.URL); err != nil {
+		slog.Error("ProductService.UploadImage failed",
+			slog.String("operation", "update_product"),
+			slog.String("product_id", input.ProductID),
+			slog.Any("error", err),
+		)
 		return nil, err
 	}
+
+	slog.Debug("ProductService.UploadImage saving product with new image", slog.String("product_id", input.ProductID))
 	if err := s.repo.Update(ctx, product); err != nil {
+		slog.Error("ProductService.UploadImage failed",
+			slog.String("operation", "update_repository"),
+			slog.String("product_id", input.ProductID),
+			slog.Any("error", err),
+		)
 		return nil, err
 	}
+
+	slog.Info("ProductService.UploadImage completed", slog.String("product_id", product.ID()))
 	return product, nil
 }

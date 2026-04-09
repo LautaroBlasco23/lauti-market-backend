@@ -10,3 +10,9 @@ type LoginResponse struct {
 	AccountID   string `json:"account_id"`
 	AccountType string `json:"account_type"`
 }
+
+type MeResponse struct {
+	AuthID      string `json:"auth_id"`
+	AccountID   string `json:"account_id"`
+	AccountType string `json:"account_type"`
+}

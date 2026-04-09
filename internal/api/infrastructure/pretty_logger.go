@@ -11,6 +11,14 @@ import (
 	"time"
 )
 
+// LoggerLevel returns the configured log level based on LOG_LEVEL env var
+func LoggerLevel() slog.Level {
+	if os.Getenv("LOG_LEVEL") == "debug" {
+		return slog.LevelDebug
+	}
+	return slog.LevelInfo
+}
+
 // ANSI color codes
 const (
 	colorReset   = "\033[0m"
@@ -198,10 +206,10 @@ func (h *PrettyHandler) WithGroup(name string) slog.Handler {
 	}
 }
 
-// InitLogger initializes the pretty logger
+// InitLogger initializes the pretty logger with configurable level
 func InitLogger() {
 	handler := NewPrettyHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: LoggerLevel(),
 	})
 	logger := slog.New(handler)
 	slog.SetDefault(logger)

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
+	apiInfra "github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/application"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/controller"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/repository"
@@ -27,6 +28,7 @@ func Wire(
 	userModule *userinfra.UserModule,
 	storeModule *storeinfra.StoreModule,
 	cfg utils.JwtConfig,
+	authMw *apiInfra.AuthMiddleware,
 ) *AuthModule {
 	repo := repository.NewPostgresRepository(db)
 	hasher := utils.NewBcryptHasher()
@@ -42,7 +44,7 @@ func Wire(
 	)
 
 	authController := controller.NewController(service)
-	routes.RegisterRoutes(mux, authController)
+	routes.RegisterRoutes(mux, authController, authMw)
 
 	return &AuthModule{
 		Repository: repo,

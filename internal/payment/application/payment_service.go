@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
@@ -56,25 +57,58 @@ type WebhookInput struct {
 }
 
 func (s *PaymentService) CreatePreference(ctx context.Context, input CreatePreferenceInput) (*PreferenceResult, error) {
+	slog.Debug("PaymentService.CreatePreference started",
+		slog.String("user_id", input.UserID),
+		slog.Int("order_count", len(input.OrderIDs)),
+	)
+
 	if len(input.OrderIDs) == 0 {
+		slog.Error("PaymentService.CreatePreference failed",
+			slog.String("operation", "validate_order_ids"),
+			slog.String("error", "no order IDs provided"),
+		)
 		return nil, apiDomain.ErrOrderNotFound
 	}
 
 	orders := make([]*orderDomain.Order, 0, len(input.OrderIDs))
 	for _, orderID := range input.OrderIDs {
+		slog.Debug("PaymentService.CreatePreference fetching order", slog.String("order_id", orderID))
 		order, err := s.orderRepo.FindByID(ctx, orderID)
 		if err != nil {
+			slog.Error("PaymentService.CreatePreference failed",
+				slog.String("operation", "find_order_by_id"),
+				slog.String("order_id", orderID),
+				slog.Any("error", err),
+			)
 			return nil, apiDomain.ErrOrderNotFound
 		}
 		if order.UserID() != input.UserID {
+			slog.Error("PaymentService.CreatePreference failed",
+				slog.String("operation", "validate_order_ownership"),
+				slog.String("order_id", orderID),
+				slog.String("order_user_id", order.UserID()),
+				slog.String("request_user_id", input.UserID),
+				slog.String("error", "forbidden access to order"),
+			)
 			return nil, apiDomain.ErrForbidden
 		}
 		if order.Status() != orderDomain.StatusPending {
+			slog.Error("PaymentService.CreatePreference failed",
+				slog.String("operation", "validate_order_status"),
+				slog.String("order_id", orderID),
+				slog.String("current_status", string(order.Status())),
+				slog.String("error", "order not in pending status"),
+			)
 			return nil, apiDomain.ErrForbiddenTransition
 		}
 
 		existing, err := s.repo.FindByOrderID(ctx, orderID)
 		if err == nil && existing != nil {
+			slog.Error("PaymentService.CreatePreference failed",
+				slog.String("operation", "check_existing_payment"),
+				slog.String("order_id", orderID),
+				slog.String("error", "payment already exists"),
+			)
 			return nil, apiDomain.ErrPaymentAlreadyExists
 		}
 
@@ -99,6 +133,10 @@ func (s *PaymentService) CreatePreference(ctx context.Context, input CreatePrefe
 		frontendBase = "http://localhost:3000"
 	}
 
+	slog.Debug("PaymentService.CreatePreference calling MercadoPago",
+		slog.String("external_reference", externalRef),
+		slog.Int("item_count", len(items)),
+	)
 	mpResp, err := s.mpClient.CreatePreference(ctx, &domain.MPPreferenceRequest{
 		Items: items,
 		BackURLs: domain.MPBackURLs{
@@ -110,17 +148,35 @@ func (s *PaymentService) CreatePreference(ctx context.Context, input CreatePrefe
 		ExternalReference: externalRef,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", apiDomain.ErrPaymentFailed, err)
+		slog.Error("PaymentService.CreatePreference failed",
+			slog.String("operation", "create_mp_preference"),
+			slog.Any("error", err),
+		)
+		return nil, fmt.Errorf("%w: %w", apiDomain.ErrPaymentFailed, err)
 	}
 
 	// Save one payment record per order.
+	slog.Debug("PaymentService.CreatePreference saving payment records",
+		slog.String("preference_id", mpResp.PreferenceID),
+		slog.Int("order_count", len(orders)),
+	)
 	for _, order := range orders {
 		p := domain.NewPayment(s.idGen.Generate(), order.ID(), input.UserID, mpResp.PreferenceID, order.TotalPrice())
 		if saveErr := s.repo.Save(ctx, p); saveErr != nil {
+			slog.Error("PaymentService.CreatePreference failed",
+				slog.String("operation", "save_payment"),
+				slog.String("order_id", order.ID()),
+				slog.Any("error", saveErr),
+			)
 			return nil, fmt.Errorf("saving payment for order %s: %w", order.ID(), saveErr)
 		}
 	}
 
+	slog.Info("PaymentService.CreatePreference completed",
+		slog.String("preference_id", mpResp.PreferenceID),
+		slog.String("user_id", input.UserID),
+		slog.Int("order_count", len(orders)),
+	)
 	return &PreferenceResult{
 		PreferenceID:     mpResp.PreferenceID,
 		InitPoint:        mpResp.InitPoint,
@@ -129,16 +185,34 @@ func (s *PaymentService) CreatePreference(ctx context.Context, input CreatePrefe
 }
 
 func (s *PaymentService) HandleWebhook(ctx context.Context, input WebhookInput) error {
+	slog.Debug("PaymentService.HandleWebhook started",
+		slog.Int64("mp_payment_id", input.MPPaymentID),
+	)
+
 	mpResp, err := s.mpClient.GetPayment(ctx, input.MPPaymentID)
 	if err != nil {
+		slog.Error("PaymentService.HandleWebhook failed",
+			slog.String("operation", "get_mp_payment"),
+			slog.Int64("mp_payment_id", input.MPPaymentID),
+			slog.Any("error", err),
+		)
 		return err
 	}
 
 	if mpResp.ExternalReference == "" {
+		slog.Debug("PaymentService.HandleWebhook skipped - no external reference",
+			slog.Int64("mp_payment_id", input.MPPaymentID),
+		)
 		return nil
 	}
 
 	orderIDs := strings.Split(mpResp.ExternalReference, ",")
+	slog.Debug("PaymentService.HandleWebhook processing orders",
+		slog.Int64("mp_payment_id", input.MPPaymentID),
+		slog.String("mp_status", string(mpResp.Status)),
+		slog.Int("order_count", len(orderIDs)),
+	)
+
 	for _, orderID := range orderIDs {
 		orderID = strings.TrimSpace(orderID)
 		if orderID == "" {
@@ -148,51 +222,116 @@ func (s *PaymentService) HandleWebhook(ctx context.Context, input WebhookInput) 
 		p, err := s.repo.FindByOrderID(ctx, orderID)
 		if err != nil {
 			if errors.Is(err, apiDomain.ErrPaymentNotFound) {
+				slog.Debug("PaymentService.HandleWebhook payment not found for order, skipping",
+					slog.String("order_id", orderID),
+				)
 				continue
 			}
+			slog.Error("PaymentService.HandleWebhook failed",
+				slog.String("operation", "find_payment_by_order_id"),
+				slog.String("order_id", orderID),
+				slog.Any("error", err),
+			)
 			return err
 		}
 
 		if p.Status() == mpResp.Status {
+			slog.Debug("PaymentService.HandleWebhook status unchanged, skipping",
+				slog.String("order_id", orderID),
+				slog.String("status", string(p.Status())),
+			)
 			continue
 		}
 
+		slog.Debug("PaymentService.HandleWebhook updating payment status",
+			slog.String("order_id", orderID),
+			slog.String("old_status", string(p.Status())),
+			slog.String("new_status", string(mpResp.Status)),
+		)
 		p.UpdateFromMP(input.MPPaymentID, mpResp.Status, mpResp.StatusDetail, mpResp.PaymentMethod)
 
 		if err := s.repo.UpdateFromMP(ctx, p); err != nil {
+			slog.Error("PaymentService.HandleWebhook failed",
+				slog.String("operation", "update_payment_from_mp"),
+				slog.String("order_id", orderID),
+				slog.Any("error", err),
+			)
 			return err
 		}
 
 		if mpResp.Status == domain.StatusApproved {
+			slog.Debug("PaymentService.HandleWebhook confirming order",
+				slog.String("order_id", orderID),
+			)
 			_ = s.orderRepo.UpdateStatus(ctx, orderID, orderDomain.StatusConfirmed) //nolint:errcheck
 		}
 	}
 
+	slog.Info("PaymentService.HandleWebhook completed",
+		slog.Int64("mp_payment_id", input.MPPaymentID),
+		slog.String("mp_status", string(mpResp.Status)),
+	)
 	return nil
 }
 
 func (s *PaymentService) GetByID(ctx context.Context, id, accountID string) (*domain.Payment, error) {
+	slog.Debug("PaymentService.GetByID started",
+		slog.String("payment_id", id),
+		slog.String("account_id", accountID),
+	)
+
 	p, err := s.repo.FindByID(ctx, id)
 	if err != nil {
+		slog.Error("PaymentService.GetByID failed",
+			slog.String("operation", "find_by_id"),
+			slog.String("payment_id", id),
+			slog.Any("error", err),
+		)
 		return nil, apiDomain.ErrPaymentNotFound
 	}
 
 	if p.UserID() != accountID {
+		slog.Error("PaymentService.GetByID failed",
+			slog.String("operation", "validate_ownership"),
+			slog.String("payment_id", id),
+			slog.String("payment_user_id", p.UserID()),
+			slog.String("request_account_id", accountID),
+			slog.String("error", "forbidden access to payment"),
+		)
 		return nil, apiDomain.ErrForbidden
 	}
 
+	slog.Info("PaymentService.GetByID completed", slog.String("payment_id", id))
 	return p, nil
 }
 
 func (s *PaymentService) GetByOrderID(ctx context.Context, orderID, accountID string) (*domain.Payment, error) {
+	slog.Debug("PaymentService.GetByOrderID started",
+		slog.String("order_id", orderID),
+		slog.String("account_id", accountID),
+	)
+
 	p, err := s.repo.FindByOrderID(ctx, orderID)
 	if err != nil {
+		slog.Error("PaymentService.GetByOrderID failed",
+			slog.String("operation", "find_by_order_id"),
+			slog.String("order_id", orderID),
+			slog.Any("error", err),
+		)
 		return nil, apiDomain.ErrPaymentNotFound
 	}
 
 	if p.UserID() != accountID {
+		slog.Error("PaymentService.GetByOrderID failed",
+			slog.String("operation", "validate_ownership"),
+			slog.String("order_id", orderID),
+			slog.String("payment_user_id", p.UserID()),
+			slog.String("request_account_id", accountID),
+			slog.String("error", "forbidden access to payment"),
+		)
 		return nil, apiDomain.ErrForbidden
 	}
 
+	slog.Info("PaymentService.GetByOrderID completed", slog.String("order_id", orderID))
 	return p, nil
 }
