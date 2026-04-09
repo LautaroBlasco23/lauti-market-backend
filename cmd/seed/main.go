@@ -255,7 +255,7 @@ func main() {
 	var totalStores, totalProducts, failedStores, failedProducts int
 
 	for _, seller := range sellers {
-		accountID, ok := registerStore(client, *baseURL, &seller)
+		accountID, token, ok := registerStore(client, *baseURL, &seller)
 		if !ok {
 			failedStores++
 			continue
@@ -263,7 +263,7 @@ func main() {
 		totalStores++
 
 		for _, product := range seller.Products {
-			if createProduct(client, *baseURL, accountID, &product, unsplashKey) {
+			if createProduct(client, *baseURL, accountID, token, &product, unsplashKey) {
 				totalProducts++
 			} else {
 				failedProducts++
@@ -350,8 +350,9 @@ func generateProducts(rng *rand.Rand, cat *categoryDef, n int) []productSeed {
 	return out
 }
 
-// registerStore POSTs to /auth/register/store and returns the account_id on success.
-func registerStore(client *http.Client, baseURL string, seller *sellerSeed) (string, bool) {
+// registerStore POSTs to /auth/register/store, then logs in to get a JWT token.
+// Returns the account_id and JWT token on success.
+func registerStore(client *http.Client, baseURL string, seller *sellerSeed) (string, string, bool) {
 	payload := map[string]string{
 		"email":        seller.Email,
 		"password":     seller.Password,
@@ -364,7 +365,7 @@ func registerStore(client *http.Client, baseURL string, seller *sellerSeed) (str
 	body, status, err := postJSON(client, baseURL+"/auth/register/store", payload)
 	if err != nil {
 		log.Printf("[store] ERROR registering %q: %v", seller.Name, err)
-		return "", false
+		return "", "", false
 	}
 
 	switch status {
@@ -374,19 +375,53 @@ func registerStore(client *http.Client, baseURL string, seller *sellerSeed) (str
 			log.Printf("[store] WARNING: account_id missing in response for %q", seller.Name)
 		}
 		log.Printf("[store] Created %q (account_id=%s)", seller.Name, accountID)
-		return accountID, true
+
+		// Login to get JWT token
+		token, ok := loginStore(client, baseURL, seller.Email, seller.Password)
+		if !ok {
+			log.Printf("[store] WARNING: failed to login after registering %q", seller.Name)
+			return accountID, "", true // Store created but no token
+		}
+		return accountID, token, true
 	case http.StatusConflict:
 		log.Printf("[store] SKIP %q — email %q already exists (409)", seller.Name, seller.Email)
-		return "", false
+		return "", "", false
 	default:
 		log.Printf("[store] ERROR registering %q — status %d, body: %v", seller.Name, status, body)
+		return "", "", false
+	}
+}
+
+// loginStore POSTs to /auth/login and returns the JWT token on success.
+func loginStore(client *http.Client, baseURL, email, password string) (string, bool) {
+	payload := map[string]string{
+		"email":    email,
+		"password": password,
+	}
+
+	body, status, err := postJSON(client, baseURL+"/auth/login", payload)
+	if err != nil {
+		log.Printf("[auth] ERROR logging in %q: %v", email, err)
 		return "", false
 	}
+
+	if status != http.StatusOK {
+		log.Printf("[auth] ERROR logging in %q — status %d, body: %v", email, status, body)
+		return "", false
+	}
+
+	token, ok := body["token"].(string)
+	if !ok {
+		log.Printf("[auth] WARNING: token missing in login response for %q", email)
+		return "", false
+	}
+
+	return token, true
 }
 
 // createProduct POSTs multipart form data to /stores/{storeID}/products, then
 // patches the image_url via PUT if Unsplash returns a random photo for the query.
-func createProduct(client *http.Client, baseURL, storeID string, product *productSeed, unsplashKey string) bool {
+func createProduct(client *http.Client, baseURL, storeID, token string, product *productSeed, unsplashKey string) bool {
 	fields := map[string]string{
 		"name":        product.Name,
 		"description": product.Description,
@@ -396,7 +431,7 @@ func createProduct(client *http.Client, baseURL, storeID string, product *produc
 	}
 
 	endpoint := fmt.Sprintf("%s/stores/%s/products", baseURL, storeID)
-	body, status, err := postMultipart(client, endpoint, fields)
+	body, status, err := postMultipart(client, endpoint, token, fields)
 	if err != nil {
 		log.Printf("[product] ERROR creating %q: %v", product.Name, err)
 		return false
@@ -435,7 +470,7 @@ func createProduct(client *http.Client, baseURL, storeID string, product *produc
 		"price":       product.Price,
 		"image_url":   imageURL,
 	}
-	_, putStatus, err := putJSON(client, putEndpoint, putPayload)
+	_, putStatus, err := putJSON(client, putEndpoint, token, putPayload)
 	if err != nil || putStatus != http.StatusOK {
 		log.Printf("[product] WARNING: failed to set image_url for %q (status %d): %v", product.Name, putStatus, err)
 		return true
@@ -486,7 +521,7 @@ func fetchUnsplashURL(client *http.Client, accessKey, query string) (string, err
 }
 
 // postMultipart sends a multipart/form-data POST request with the given fields.
-func postMultipart(client *http.Client, rawURL string, fields map[string]string) (map[string]any, int, error) {
+func postMultipart(client *http.Client, rawURL, token string, fields map[string]string) (map[string]any, int, error) {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
@@ -505,12 +540,15 @@ func postMultipart(client *http.Client, rawURL string, fields map[string]string)
 		return nil, 0, fmt.Errorf("creating request: %w", err)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	return doRequest(client, req)
 }
 
 // putJSON marshals payload as JSON and sends a PUT request.
-func putJSON(client *http.Client, rawURL string, payload any) (map[string]any, int, error) {
+func putJSON(client *http.Client, rawURL, token string, payload any) (map[string]any, int, error) {
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return nil, 0, fmt.Errorf("marshalling payload: %w", err)
@@ -521,6 +559,9 @@ func putJSON(client *http.Client, rawURL string, payload any) (map[string]any, i
 		return nil, 0, fmt.Errorf("creating request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	return doRequest(client, req)
 }
