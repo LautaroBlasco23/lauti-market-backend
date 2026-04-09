@@ -29,11 +29,10 @@ import (
 // --- Mocks ---
 
 type mockPaymentRepo struct {
-	SaveFn              func(ctx context.Context, p *paymentDomain.Payment) error
-	FindByIDFn          func(ctx context.Context, id string) (*paymentDomain.Payment, error)
-	FindByOrderIDFn     func(ctx context.Context, orderID string) (*paymentDomain.Payment, error)
-	FindByMPPaymentIDFn func(ctx context.Context, mpPaymentID int64) (*paymentDomain.Payment, error)
-	UpdateFromMPFn      func(ctx context.Context, p *paymentDomain.Payment) error
+	SaveFn          func(ctx context.Context, p *paymentDomain.Payment) error
+	FindByIDFn      func(ctx context.Context, id string) (*paymentDomain.Payment, error)
+	FindByOrderIDFn func(ctx context.Context, orderID string) (*paymentDomain.Payment, error)
+	UpdateFromMPFn  func(ctx context.Context, p *paymentDomain.Payment) error
 }
 
 func (m *mockPaymentRepo) Save(ctx context.Context, p *paymentDomain.Payment) error {
@@ -49,10 +48,6 @@ func (m *mockPaymentRepo) FindByID(ctx context.Context, id string) (*paymentDoma
 
 func (m *mockPaymentRepo) FindByOrderID(ctx context.Context, orderID string) (*paymentDomain.Payment, error) {
 	return m.FindByOrderIDFn(ctx, orderID)
-}
-
-func (m *mockPaymentRepo) FindByMPPaymentID(ctx context.Context, mpPaymentID int64) (*paymentDomain.Payment, error) {
-	return m.FindByMPPaymentIDFn(ctx, mpPaymentID)
 }
 
 func (m *mockPaymentRepo) UpdateFromMP(ctx context.Context, p *paymentDomain.Payment) error {
@@ -91,13 +86,13 @@ func (m *mockOrderRepo) UpdateStatus(ctx context.Context, id string, status orde
 }
 
 type mockMPClient struct {
-	CreatePaymentFn func(ctx context.Context, req *paymentDomain.MPPaymentRequest) (*paymentDomain.MPPaymentResponse, error)
-	GetPaymentFn    func(ctx context.Context, paymentID int64) (*paymentDomain.MPPaymentResponse, error)
+	CreatePreferenceFn func(ctx context.Context, req *paymentDomain.MPPreferenceRequest) (*paymentDomain.MPPreferenceResponse, error)
+	GetPaymentFn       func(ctx context.Context, paymentID int64) (*paymentDomain.MPPaymentResponse, error)
 }
 
-func (m *mockMPClient) CreatePayment(ctx context.Context, req *paymentDomain.MPPaymentRequest) (*paymentDomain.MPPaymentResponse, error) {
-	if m.CreatePaymentFn != nil {
-		return m.CreatePaymentFn(ctx, req)
+func (m *mockMPClient) CreatePreference(ctx context.Context, req *paymentDomain.MPPreferenceRequest) (*paymentDomain.MPPreferenceResponse, error) {
+	if m.CreatePreferenceFn != nil {
+		return m.CreatePreferenceFn(ctx, req)
 	}
 	return nil, apiDomain.ErrPaymentFailed
 }
@@ -149,12 +144,14 @@ func makePendingOrder(id, userID string) *orderDomain.Order {
 }
 
 func makeTestPayment(id, orderID, userID string) *paymentDomain.Payment {
-	return paymentDomain.NewPayment(id, orderID, userID, "idem-"+id, 100.0)
+	return paymentDomain.NewPayment(id, orderID, userID, "pref-"+id, 100.0)
 }
 
 func makeController(payRepo paymentDomain.Repository, orderRepo orderDomain.Repository, mpClient paymentDomain.MPClient, webhookSecret string) *controller.PaymentController {
-	idGen := &mockIDGen{ids: []string{"pay-1", "idem-1"}}
-	svc := application.NewPaymentService(payRepo, orderRepo, mpClient, idGen)
+	idGen := &mockIDGen{ids: []string{"pay-1", "pay-2"}}
+	svc := application.NewPaymentService(payRepo, orderRepo, mpClient, idGen, application.Config{
+		FrontendBaseURL: "http://localhost:3000",
+	})
 	return controller.NewPaymentController(svc, webhookSecret)
 }
 
@@ -167,7 +164,6 @@ func TestCreate_UserAccount_HappyPath(t *testing.T) {
 		FindByOrderIDFn: func(_ context.Context, _ string) (*paymentDomain.Payment, error) {
 			return nil, apiDomain.ErrPaymentNotFound
 		},
-		UpdateFromMPFn: func(_ context.Context, _ *paymentDomain.Payment) error { return nil },
 	}
 	orderRepo := &mockOrderRepo{
 		FindByIDFn: func(_ context.Context, _ string) (*orderDomain.Order, error) {
@@ -175,10 +171,11 @@ func TestCreate_UserAccount_HappyPath(t *testing.T) {
 		},
 	}
 	mpClient := &mockMPClient{
-		CreatePaymentFn: func(_ context.Context, _ *paymentDomain.MPPaymentRequest) (*paymentDomain.MPPaymentResponse, error) {
-			return &paymentDomain.MPPaymentResponse{
-				ID:     42,
-				Status: paymentDomain.StatusApproved,
+		CreatePreferenceFn: func(_ context.Context, _ *paymentDomain.MPPreferenceRequest) (*paymentDomain.MPPreferenceResponse, error) {
+			return &paymentDomain.MPPreferenceResponse{
+				PreferenceID:     "pref-abc",
+				InitPoint:        "https://mp.com/checkout",
+				SandboxInitPoint: "https://sandbox.mp.com/checkout",
 			}, nil
 		},
 	}
@@ -187,9 +184,7 @@ func TestCreate_UserAccount_HappyPath(t *testing.T) {
 	handler, token := withClaims(t, http.HandlerFunc(ctrl.Create), "user", "user-1")
 
 	req := httptest.NewRequest(http.MethodPost, "/payments", jsonBody(t, map[string]any{
-		"order_id":    "order-1",
-		"card_token":  "tok_abc",
-		"payer_email": "user@example.com",
+		"order_ids": []string{"order-1"},
 	}))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -200,8 +195,8 @@ func TestCreate_UserAccount_HappyPath(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, rr.Code)
 	var resp map[string]any
 	require.NoError(t, json.NewDecoder(rr.Body).Decode(&resp))
-	assert.Equal(t, "pay-1", resp["id"])
-	assert.Equal(t, "user-1", resp["user_id"])
+	assert.Equal(t, "pref-abc", resp["preference_id"])
+	assert.Equal(t, "https://sandbox.mp.com/checkout", resp["sandbox_init_point"])
 }
 
 func TestCreate_StoreAccount_Forbidden(t *testing.T) {
@@ -209,9 +204,7 @@ func TestCreate_StoreAccount_Forbidden(t *testing.T) {
 	handler, token := withClaims(t, http.HandlerFunc(ctrl.Create), "store", "store-1")
 
 	req := httptest.NewRequest(http.MethodPost, "/payments", jsonBody(t, map[string]any{
-		"order_id":    "order-1",
-		"card_token":  "tok_abc",
-		"payer_email": "user@example.com",
+		"order_ids": []string{"order-1"},
 	}))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -226,9 +219,7 @@ func TestCreate_NoAuth(t *testing.T) {
 	ctrl := makeController(&mockPaymentRepo{}, &mockOrderRepo{}, &mockMPClient{}, "")
 
 	req := httptest.NewRequest(http.MethodPost, "/payments", jsonBody(t, map[string]any{
-		"order_id":    "order-1",
-		"card_token":  "tok_abc",
-		"payer_email": "user@example.com",
+		"order_ids": []string{"order-1"},
 	}))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -252,14 +243,11 @@ func TestCreate_InvalidBody(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
 
-func TestCreate_ValidationError_MissingFields(t *testing.T) {
+func TestCreate_ValidationError_MissingOrderIDs(t *testing.T) {
 	ctrl := makeController(&mockPaymentRepo{}, &mockOrderRepo{}, &mockMPClient{}, "")
 	handler, token := withClaims(t, http.HandlerFunc(ctrl.Create), "user", "user-1")
 
-	// Missing required fields: card_token and payer_email
-	req := httptest.NewRequest(http.MethodPost, "/payments", jsonBody(t, map[string]any{
-		"order_id": "order-1",
-	}))
+	req := httptest.NewRequest(http.MethodPost, "/payments", jsonBody(t, map[string]any{}))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 	rr := httptest.NewRecorder()
@@ -279,9 +267,7 @@ func TestCreate_OrderNotFound(t *testing.T) {
 	handler, token := withClaims(t, http.HandlerFunc(ctrl.Create), "user", "user-1")
 
 	req := httptest.NewRequest(http.MethodPost, "/payments", jsonBody(t, map[string]any{
-		"order_id":    "nonexistent",
-		"card_token":  "tok_abc",
-		"payer_email": "user@example.com",
+		"order_ids": []string{"nonexistent"},
 	}))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -309,9 +295,7 @@ func TestCreate_PaymentAlreadyExists(t *testing.T) {
 	handler, token := withClaims(t, http.HandlerFunc(ctrl.Create), "user", "user-1")
 
 	req := httptest.NewRequest(http.MethodPost, "/payments", jsonBody(t, map[string]any{
-		"order_id":    "order-1",
-		"card_token":  "tok_abc",
-		"payer_email": "user@example.com",
+		"order_ids": []string{"order-1"},
 	}))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -460,15 +444,16 @@ func TestHandleWebhook_ValidSignature_Returns200(t *testing.T) {
 	mpPaymentIDStr := "42"
 
 	payRepo := &mockPaymentRepo{
-		FindByMPPaymentIDFn: func(_ context.Context, _ int64) (*paymentDomain.Payment, error) {
+		FindByOrderIDFn: func(_ context.Context, _ string) (*paymentDomain.Payment, error) {
 			return nil, apiDomain.ErrPaymentNotFound
 		},
 	}
 	mpClient := &mockMPClient{
 		GetPaymentFn: func(_ context.Context, _ int64) (*paymentDomain.MPPaymentResponse, error) {
 			return &paymentDomain.MPPaymentResponse{
-				ID:     42,
-				Status: paymentDomain.StatusApproved,
+				ID:                42,
+				Status:            paymentDomain.StatusApproved,
+				ExternalReference: "order-1",
 			}, nil
 		},
 	}
@@ -507,7 +492,6 @@ func TestHandleWebhook_InvalidSignature_Returns200(t *testing.T) {
 
 	ctrl.HandleWebhook(rr, req)
 
-	// Webhook always returns 200 even on bad signature
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
@@ -541,17 +525,17 @@ func TestHandleWebhook_InvalidJSON_Returns200(t *testing.T) {
 }
 
 func TestHandleWebhook_NoSecret_SkipsValidation(t *testing.T) {
-	// When webhookSecret is empty, signature validation is skipped
 	payRepo := &mockPaymentRepo{
-		FindByMPPaymentIDFn: func(_ context.Context, _ int64) (*paymentDomain.Payment, error) {
+		FindByOrderIDFn: func(_ context.Context, _ string) (*paymentDomain.Payment, error) {
 			return nil, apiDomain.ErrPaymentNotFound
 		},
 	}
 	mpClient := &mockMPClient{
 		GetPaymentFn: func(_ context.Context, _ int64) (*paymentDomain.MPPaymentResponse, error) {
 			return &paymentDomain.MPPaymentResponse{
-				ID:     7,
-				Status: paymentDomain.StatusPending,
+				ID:                7,
+				Status:            paymentDomain.StatusPending,
+				ExternalReference: "order-7",
 			}, nil
 		},
 	}

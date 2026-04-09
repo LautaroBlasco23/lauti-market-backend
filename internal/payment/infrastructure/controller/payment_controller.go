@@ -41,6 +41,7 @@ func toPaymentResponse(p *domain.Payment) dto.PaymentResponse {
 		Status:        string(p.Status()),
 		StatusDetail:  p.StatusDetail(),
 		PaymentMethod: p.PaymentMethod(),
+		PreferenceID:  p.PreferenceID(),
 		CreatedAt:     p.CreatedAt(),
 		UpdatedAt:     p.UpdatedAt(),
 	}
@@ -57,7 +58,7 @@ func (c *PaymentController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req dto.CreatePaymentRequest
+	var req dto.CreatePreferenceRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
@@ -73,12 +74,9 @@ func (c *PaymentController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, err := c.service.CreatePayment(r.Context(), application.CreatePaymentInput{
-		OrderID:      req.OrderID,
-		UserID:       claims.AccountID,
-		CardToken:    req.CardToken,
-		PayerEmail:   req.PayerEmail,
-		Installments: req.Installments,
+	result, err := c.service.CreatePreference(r.Context(), application.CreatePreferenceInput{
+		OrderIDs: req.OrderIDs,
+		UserID:   claims.AccountID,
 	})
 	if err != nil {
 		c.handleError(w, err)
@@ -87,7 +85,11 @@ func (c *PaymentController) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(toPaymentResponse(p)) //nolint:errcheck
+	_ = json.NewEncoder(w).Encode(dto.CreatePreferenceResponse{ //nolint:errcheck
+		PreferenceID:     result.PreferenceID,
+		InitPoint:        result.InitPoint,
+		SandboxInitPoint: result.SandboxInitPoint,
+	})
 }
 
 func (c *PaymentController) GetByID(w http.ResponseWriter, r *http.Request) {

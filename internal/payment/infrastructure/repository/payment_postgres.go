@@ -19,7 +19,7 @@ func NewPaymentPostgresRepository(db *sql.DB) *PaymentPostgresRepository {
 
 func (r *PaymentPostgresRepository) Save(ctx context.Context, p *domain.Payment) error {
 	query := `
-		INSERT INTO payments (id, order_id, user_id, mp_payment_id, amount, currency, status, status_detail, payment_method, idempotency_key, created_at, updated_at)
+		INSERT INTO payments (id, order_id, user_id, mp_payment_id, amount, currency, status, status_detail, payment_method, preference_id, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
 	_, err := r.db.ExecContext(ctx, query,
@@ -32,7 +32,7 @@ func (r *PaymentPostgresRepository) Save(ctx context.Context, p *domain.Payment)
 		string(p.Status()),
 		p.StatusDetail(),
 		p.PaymentMethod(),
-		p.IdempotencyKey(),
+		p.PreferenceID(),
 		p.CreatedAt(),
 		p.UpdatedAt(),
 	)
@@ -41,7 +41,7 @@ func (r *PaymentPostgresRepository) Save(ctx context.Context, p *domain.Payment)
 
 func (r *PaymentPostgresRepository) FindByID(ctx context.Context, id string) (*domain.Payment, error) {
 	query := `
-		SELECT id, order_id, user_id, mp_payment_id, amount, currency, status, status_detail, payment_method, idempotency_key, created_at, updated_at
+		SELECT id, order_id, user_id, mp_payment_id, amount, currency, status, status_detail, payment_method, preference_id, created_at, updated_at
 		FROM payments
 		WHERE id = $1
 	`
@@ -50,20 +50,11 @@ func (r *PaymentPostgresRepository) FindByID(ctx context.Context, id string) (*d
 
 func (r *PaymentPostgresRepository) FindByOrderID(ctx context.Context, orderID string) (*domain.Payment, error) {
 	query := `
-		SELECT id, order_id, user_id, mp_payment_id, amount, currency, status, status_detail, payment_method, idempotency_key, created_at, updated_at
+		SELECT id, order_id, user_id, mp_payment_id, amount, currency, status, status_detail, payment_method, preference_id, created_at, updated_at
 		FROM payments
 		WHERE order_id = $1
 	`
 	return r.scanPayment(r.db.QueryRowContext(ctx, query, orderID))
-}
-
-func (r *PaymentPostgresRepository) FindByMPPaymentID(ctx context.Context, mpPaymentID int64) (*domain.Payment, error) {
-	query := `
-		SELECT id, order_id, user_id, mp_payment_id, amount, currency, status, status_detail, payment_method, idempotency_key, created_at, updated_at
-		FROM payments
-		WHERE mp_payment_id = $1
-	`
-	return r.scanPayment(r.db.QueryRowContext(ctx, query, mpPaymentID))
 }
 
 func (r *PaymentPostgresRepository) UpdateFromMP(ctx context.Context, p *domain.Payment) error {
@@ -101,7 +92,7 @@ func (r *PaymentPostgresRepository) scanPayment(row *sql.Row) (*domain.Payment, 
 		currency, status     string
 		statusDetail         sql.NullString
 		paymentMethod        sql.NullString
-		idempotencyKey       string
+		preferenceID         sql.NullString
 		createdAt, updatedAt time.Time
 	)
 
@@ -115,7 +106,7 @@ func (r *PaymentPostgresRepository) scanPayment(row *sql.Row) (*domain.Payment, 
 		&status,
 		&statusDetail,
 		&paymentMethod,
-		&idempotencyKey,
+		&preferenceID,
 		&createdAt,
 		&updatedAt,
 	)
@@ -126,12 +117,15 @@ func (r *PaymentPostgresRepository) scanPayment(row *sql.Row) (*domain.Payment, 
 		return nil, err
 	}
 
-	var statusDetailStr, paymentMethodStr string
+	var statusDetailStr, paymentMethodStr, preferenceIDStr string
 	if statusDetail.Valid {
 		statusDetailStr = statusDetail.String
 	}
 	if paymentMethod.Valid {
 		paymentMethodStr = paymentMethod.String
+	}
+	if preferenceID.Valid {
+		preferenceIDStr = preferenceID.String
 	}
 
 	return domain.NewPaymentFromDB(
@@ -140,7 +134,7 @@ func (r *PaymentPostgresRepository) scanPayment(row *sql.Row) (*domain.Payment, 
 		amount,
 		currency,
 		domain.PaymentStatus(status),
-		statusDetailStr, paymentMethodStr, idempotencyKey,
+		statusDetailStr, paymentMethodStr, preferenceIDStr,
 		createdAt, updatedAt,
 	), nil
 }

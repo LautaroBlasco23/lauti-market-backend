@@ -2,11 +2,14 @@ package dto
 
 import "time"
 
-type CreatePaymentRequest struct {
-	OrderID      string `json:"order_id"     validate:"required"`
-	CardToken    string `json:"card_token"   validate:"required"`
-	PayerEmail   string `json:"payer_email"  validate:"required,email"`
-	Installments int    `json:"installments" validate:"omitempty,min=1,max=12"`
+type CreatePreferenceRequest struct {
+	OrderIDs []string `json:"order_ids" validate:"required,min=1"`
+}
+
+type CreatePreferenceResponse struct {
+	PreferenceID     string `json:"preference_id"`
+	InitPoint        string `json:"init_point"`
+	SandboxInitPoint string `json:"sandbox_init_point"`
 }
 
 type PaymentResponse struct {
@@ -19,6 +22,7 @@ type PaymentResponse struct {
 	Status        string    `json:"status"`
 	StatusDetail  string    `json:"status_detail,omitempty"`
 	PaymentMethod string    `json:"payment_method,omitempty"`
+	PreferenceID  string    `json:"preference_id,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }

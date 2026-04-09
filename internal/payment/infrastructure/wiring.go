@@ -28,6 +28,8 @@ func Wire(
 	authMw *apiInfra.AuthMiddleware,
 	mpAccessToken string,
 	mpWebhookSecret string,
+	frontendBaseURL string,
+	notificationURL string,
 ) *PaymentModule {
 	mpClient, err := mp.NewMPClient(mpAccessToken)
 	if err != nil {
@@ -35,7 +37,10 @@ func Wire(
 	}
 
 	repo := repository.NewPaymentPostgresRepository(db)
-	service := application.NewPaymentService(repo, orderRepo, mpClient, idGen)
+	service := application.NewPaymentService(repo, orderRepo, mpClient, idGen, application.Config{
+		FrontendBaseURL: frontendBaseURL,
+		NotificationURL: notificationURL,
+	})
 	ctrl := controller.NewPaymentController(service, mpWebhookSecret)
 
 	routes.RegisterRoutes(mux, ctrl, authMw)

@@ -53,7 +53,7 @@ func setupDeps(t *testing.T) (context.Context, *repository.PaymentPostgresReposi
 }
 
 func makePayment(id, orderID, userID string) *paymentDomain.Payment {
-	return paymentDomain.NewPayment(id, orderID, userID, "idem-"+id, 100.0)
+	return paymentDomain.NewPayment(id, orderID, userID, "pref-"+id, 100.0)
 }
 
 // --- Save / FindByID ---
@@ -98,31 +98,6 @@ func TestPaymentRepository_FindByOrderID_NotFound(t *testing.T) {
 	ctx, repo, _ := setupDeps(t)
 
 	_, err := repo.FindByOrderID(ctx, "nonexistent-order")
-	assert.ErrorIs(t, err, apiDomain.ErrPaymentNotFound)
-}
-
-// --- FindByMPPaymentID ---
-
-func TestPaymentRepository_FindByMPPaymentID(t *testing.T) {
-	ctx, repo, order := setupDeps(t)
-
-	p := makePayment("pay-1", order.ID(), "user-1")
-	require.NoError(t, repo.Save(ctx, p))
-
-	// Assign a real MP payment ID via update.
-	p.UpdateFromMP(12345, paymentDomain.StatusApproved, "accredited", "credit_card")
-	require.NoError(t, repo.UpdateFromMP(ctx, p))
-
-	found, err := repo.FindByMPPaymentID(ctx, 12345)
-	require.NoError(t, err)
-	assert.Equal(t, "pay-1", found.ID())
-	assert.Equal(t, int64(12345), found.MPPaymentID())
-}
-
-func TestPaymentRepository_FindByMPPaymentID_NotFound(t *testing.T) {
-	ctx, repo, _ := setupDeps(t)
-
-	_, err := repo.FindByMPPaymentID(ctx, 99999)
 	assert.ErrorIs(t, err, apiDomain.ErrPaymentNotFound)
 }
 

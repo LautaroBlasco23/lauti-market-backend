@@ -2,26 +2,40 @@ package domain
 
 import "context"
 
-type MPPaymentRequest struct {
-	Amount         float64
-	Description    string
-	PayerEmail     string
-	PayerFirstName string
-	PayerLastName  string
-	PayerDNI       string
-	CardToken      string
-	Installments   int
-	IdempotencyKey string
+type MPPreferenceItem struct {
+	Title     string
+	Quantity  int
+	UnitPrice float64
+}
+
+type MPBackURLs struct {
+	Success string
+	Failure string
+	Pending string
+}
+
+type MPPreferenceRequest struct {
+	Items             []MPPreferenceItem
+	BackURLs          MPBackURLs
+	NotificationURL   string
+	ExternalReference string
+}
+
+type MPPreferenceResponse struct {
+	PreferenceID     string
+	InitPoint        string
+	SandboxInitPoint string
 }
 
 type MPPaymentResponse struct {
-	ID            int64
-	Status        PaymentStatus
-	StatusDetail  string
-	PaymentMethod string
+	ID                int64
+	Status            PaymentStatus
+	StatusDetail      string
+	PaymentMethod     string
+	ExternalReference string
 }
 
 type MPClient interface {
-	CreatePayment(ctx context.Context, req *MPPaymentRequest) (*MPPaymentResponse, error)
+	CreatePreference(ctx context.Context, req *MPPreferenceRequest) (*MPPreferenceResponse, error)
 	GetPayment(ctx context.Context, paymentID int64) (*MPPaymentResponse, error)
 }

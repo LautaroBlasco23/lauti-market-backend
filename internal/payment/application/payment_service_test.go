@@ -18,11 +18,10 @@ import (
 // --- Mocks ---
 
 type mockPaymentRepo struct {
-	SaveFn              func(ctx context.Context, p *paymentDomain.Payment) error
-	FindByIDFn          func(ctx context.Context, id string) (*paymentDomain.Payment, error)
-	FindByOrderIDFn     func(ctx context.Context, orderID string) (*paymentDomain.Payment, error)
-	FindByMPPaymentIDFn func(ctx context.Context, mpPaymentID int64) (*paymentDomain.Payment, error)
-	UpdateFromMPFn      func(ctx context.Context, p *paymentDomain.Payment) error
+	SaveFn          func(ctx context.Context, p *paymentDomain.Payment) error
+	FindByIDFn      func(ctx context.Context, id string) (*paymentDomain.Payment, error)
+	FindByOrderIDFn func(ctx context.Context, orderID string) (*paymentDomain.Payment, error)
+	UpdateFromMPFn  func(ctx context.Context, p *paymentDomain.Payment) error
 }
 
 func (m *mockPaymentRepo) Save(ctx context.Context, p *paymentDomain.Payment) error {
@@ -35,10 +34,6 @@ func (m *mockPaymentRepo) FindByID(ctx context.Context, id string) (*paymentDoma
 
 func (m *mockPaymentRepo) FindByOrderID(ctx context.Context, orderID string) (*paymentDomain.Payment, error) {
 	return m.FindByOrderIDFn(ctx, orderID)
-}
-
-func (m *mockPaymentRepo) FindByMPPaymentID(ctx context.Context, mpPaymentID int64) (*paymentDomain.Payment, error) {
-	return m.FindByMPPaymentIDFn(ctx, mpPaymentID)
 }
 
 func (m *mockPaymentRepo) UpdateFromMP(ctx context.Context, p *paymentDomain.Payment) error {
@@ -71,12 +66,12 @@ func (m *mockOrderRepo) UpdateStatus(ctx context.Context, id string, status orde
 }
 
 type mockMPClient struct {
-	CreatePaymentFn func(ctx context.Context, req *paymentDomain.MPPaymentRequest) (*paymentDomain.MPPaymentResponse, error)
-	GetPaymentFn    func(ctx context.Context, paymentID int64) (*paymentDomain.MPPaymentResponse, error)
+	CreatePreferenceFn func(ctx context.Context, req *paymentDomain.MPPreferenceRequest) (*paymentDomain.MPPreferenceResponse, error)
+	GetPaymentFn       func(ctx context.Context, paymentID int64) (*paymentDomain.MPPaymentResponse, error)
 }
 
-func (m *mockMPClient) CreatePayment(ctx context.Context, req *paymentDomain.MPPaymentRequest) (*paymentDomain.MPPaymentResponse, error) {
-	return m.CreatePaymentFn(ctx, req)
+func (m *mockMPClient) CreatePreference(ctx context.Context, req *paymentDomain.MPPreferenceRequest) (*paymentDomain.MPPreferenceResponse, error) {
+	return m.CreatePreferenceFn(ctx, req)
 }
 
 func (m *mockMPClient) GetPayment(ctx context.Context, paymentID int64) (*paymentDomain.MPPaymentResponse, error) {
@@ -112,9 +107,15 @@ func makeConfirmedOrder(id, userID string) *orderDomain.Order {
 	)
 }
 
-// --- CreatePayment ---
+func newService(payRepo paymentDomain.Repository, orderRepo orderDomain.Repository, mpClient paymentDomain.MPClient, idGen apiDomain.IDGenerator) *application.PaymentService {
+	return application.NewPaymentService(payRepo, orderRepo, mpClient, idGen, application.Config{
+		FrontendBaseURL: "http://localhost:3000",
+	})
+}
 
-func TestCreatePayment_HappyPath(t *testing.T) {
+// --- CreatePreference ---
+
+func TestCreatePreference_HappyPath(t *testing.T) {
 	order := makePendingOrder("order-1", "user-1")
 
 	orderRepo := &mockOrderRepo{
@@ -127,84 +128,79 @@ func TestCreatePayment_HappyPath(t *testing.T) {
 		FindByOrderIDFn: func(_ context.Context, _ string) (*paymentDomain.Payment, error) {
 			return nil, apiDomain.ErrPaymentNotFound
 		},
-		UpdateFromMPFn: func(_ context.Context, _ *paymentDomain.Payment) error { return nil },
 	}
 	mpClient := &mockMPClient{
-		CreatePaymentFn: func(_ context.Context, _ *paymentDomain.MPPaymentRequest) (*paymentDomain.MPPaymentResponse, error) {
-			return &paymentDomain.MPPaymentResponse{
-				ID:            42,
-				Status:        paymentDomain.StatusApproved,
-				StatusDetail:  "accredited",
-				PaymentMethod: "credit_card",
+		CreatePreferenceFn: func(_ context.Context, _ *paymentDomain.MPPreferenceRequest) (*paymentDomain.MPPreferenceResponse, error) {
+			return &paymentDomain.MPPreferenceResponse{
+				PreferenceID:     "pref-123",
+				InitPoint:        "https://mp.com/checkout",
+				SandboxInitPoint: "https://sandbox.mp.com/checkout",
 			}, nil
 		},
 	}
-	idGen := &mockIDGen{ids: []string{"pay-1", "idem-1"}}
+	idGen := &mockIDGen{ids: []string{"pay-1"}}
 
-	svc := application.NewPaymentService(payRepo, orderRepo, mpClient, idGen)
-	p, err := svc.CreatePayment(context.Background(), application.CreatePaymentInput{
-		OrderID:    "order-1",
-		UserID:     "user-1",
-		CardToken:  "tok_123",
-		PayerEmail: "user@example.com",
+	svc := newService(payRepo, orderRepo, mpClient, idGen)
+	result, err := svc.CreatePreference(context.Background(), application.CreatePreferenceInput{
+		OrderIDs: []string{"order-1"},
+		UserID:   "user-1",
 	})
 
 	require.NoError(t, err)
-	assert.Equal(t, "pay-1", p.ID())
-	assert.Equal(t, int64(42), p.MPPaymentID())
-	assert.Equal(t, paymentDomain.StatusApproved, p.Status())
+	assert.Equal(t, "pref-123", result.PreferenceID)
+	assert.Equal(t, "https://sandbox.mp.com/checkout", result.SandboxInitPoint)
 }
 
-func TestCreatePayment_OrderNotFound(t *testing.T) {
+func TestCreatePreference_OrderNotFound(t *testing.T) {
 	orderRepo := &mockOrderRepo{
 		FindByIDFn: func(_ context.Context, _ string) (*orderDomain.Order, error) {
 			return nil, apiDomain.ErrOrderNotFound
 		},
 	}
-	svc := application.NewPaymentService(&mockPaymentRepo{}, orderRepo, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
+	svc := newService(&mockPaymentRepo{}, orderRepo, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
 
-	_, err := svc.CreatePayment(context.Background(), application.CreatePaymentInput{
-		OrderID: "order-1",
-		UserID:  "user-1",
+	_, err := svc.CreatePreference(context.Background(), application.CreatePreferenceInput{
+		OrderIDs: []string{"order-1"},
+		UserID:   "user-1",
 	})
 	assert.ErrorIs(t, err, apiDomain.ErrOrderNotFound)
 }
 
-func TestCreatePayment_WrongUser_Forbidden(t *testing.T) {
+func TestCreatePreference_WrongUser_Forbidden(t *testing.T) {
 	order := makePendingOrder("order-1", "owner-user")
 	orderRepo := &mockOrderRepo{
 		FindByIDFn: func(_ context.Context, _ string) (*orderDomain.Order, error) {
 			return order, nil
 		},
 	}
-	svc := application.NewPaymentService(&mockPaymentRepo{}, orderRepo, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
+	svc := newService(&mockPaymentRepo{}, orderRepo, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
 
-	_, err := svc.CreatePayment(context.Background(), application.CreatePaymentInput{
-		OrderID: "order-1",
-		UserID:  "other-user",
+	_, err := svc.CreatePreference(context.Background(), application.CreatePreferenceInput{
+		OrderIDs: []string{"order-1"},
+		UserID:   "other-user",
 	})
 	assert.ErrorIs(t, err, apiDomain.ErrForbidden)
 }
 
-func TestCreatePayment_OrderNotPending_ForbiddenTransition(t *testing.T) {
+func TestCreatePreference_OrderNotPending_ForbiddenTransition(t *testing.T) {
 	order := makeConfirmedOrder("order-1", "user-1")
 	orderRepo := &mockOrderRepo{
 		FindByIDFn: func(_ context.Context, _ string) (*orderDomain.Order, error) {
 			return order, nil
 		},
 	}
-	svc := application.NewPaymentService(&mockPaymentRepo{}, orderRepo, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
+	svc := newService(&mockPaymentRepo{}, orderRepo, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
 
-	_, err := svc.CreatePayment(context.Background(), application.CreatePaymentInput{
-		OrderID: "order-1",
-		UserID:  "user-1",
+	_, err := svc.CreatePreference(context.Background(), application.CreatePreferenceInput{
+		OrderIDs: []string{"order-1"},
+		UserID:   "user-1",
 	})
 	assert.ErrorIs(t, err, apiDomain.ErrForbiddenTransition)
 }
 
-func TestCreatePayment_AlreadyExists(t *testing.T) {
+func TestCreatePreference_AlreadyExists(t *testing.T) {
 	order := makePendingOrder("order-1", "user-1")
-	existingPayment := paymentDomain.NewPayment("pay-existing", "order-1", "user-1", "idem-x", 100.0)
+	existingPayment := paymentDomain.NewPayment("pay-existing", "order-1", "user-1", "pref-x", 100.0)
 
 	orderRepo := &mockOrderRepo{
 		FindByIDFn: func(_ context.Context, _ string) (*orderDomain.Order, error) {
@@ -216,16 +212,16 @@ func TestCreatePayment_AlreadyExists(t *testing.T) {
 			return existingPayment, nil
 		},
 	}
-	svc := application.NewPaymentService(payRepo, orderRepo, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
+	svc := newService(payRepo, orderRepo, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
 
-	_, err := svc.CreatePayment(context.Background(), application.CreatePaymentInput{
-		OrderID: "order-1",
-		UserID:  "user-1",
+	_, err := svc.CreatePreference(context.Background(), application.CreatePreferenceInput{
+		OrderIDs: []string{"order-1"},
+		UserID:   "user-1",
 	})
 	assert.ErrorIs(t, err, apiDomain.ErrPaymentAlreadyExists)
 }
 
-func TestCreatePayment_MPError_ReturnsPaymentFailed(t *testing.T) {
+func TestCreatePreference_MPError_ReturnsPaymentFailed(t *testing.T) {
 	order := makePendingOrder("order-1", "user-1")
 	orderRepo := &mockOrderRepo{
 		FindByIDFn: func(_ context.Context, _ string) (*orderDomain.Order, error) {
@@ -233,109 +229,77 @@ func TestCreatePayment_MPError_ReturnsPaymentFailed(t *testing.T) {
 		},
 	}
 	payRepo := &mockPaymentRepo{
-		SaveFn: func(_ context.Context, _ *paymentDomain.Payment) error { return nil },
 		FindByOrderIDFn: func(_ context.Context, _ string) (*paymentDomain.Payment, error) {
 			return nil, apiDomain.ErrPaymentNotFound
 		},
 	}
 	mpClient := &mockMPClient{
-		CreatePaymentFn: func(_ context.Context, _ *paymentDomain.MPPaymentRequest) (*paymentDomain.MPPaymentResponse, error) {
+		CreatePreferenceFn: func(_ context.Context, _ *paymentDomain.MPPreferenceRequest) (*paymentDomain.MPPreferenceResponse, error) {
 			return nil, errors.New("mp network error")
 		},
 	}
-	svc := application.NewPaymentService(payRepo, orderRepo, mpClient, &mockIDGen{ids: []string{"pay-1", "idem-1"}})
+	svc := newService(payRepo, orderRepo, mpClient, &mockIDGen{ids: []string{"pay-1"}})
 
-	_, err := svc.CreatePayment(context.Background(), application.CreatePaymentInput{
-		OrderID:    "order-1",
-		UserID:     "user-1",
-		CardToken:  "tok_123",
-		PayerEmail: "user@example.com",
+	_, err := svc.CreatePreference(context.Background(), application.CreatePreferenceInput{
+		OrderIDs: []string{"order-1"},
+		UserID:   "user-1",
 	})
 	assert.ErrorIs(t, err, apiDomain.ErrPaymentFailed)
 }
 
-func TestCreatePayment_DefaultInstallments(t *testing.T) {
-	order := makePendingOrder("order-1", "user-1")
+func TestCreatePreference_MultipleOrders_AllSaved(t *testing.T) {
+	orders := map[string]*orderDomain.Order{
+		"order-1": makePendingOrder("order-1", "user-1"),
+		"order-2": makePendingOrder("order-2", "user-1"),
+	}
+
 	orderRepo := &mockOrderRepo{
-		FindByIDFn: func(_ context.Context, _ string) (*orderDomain.Order, error) {
-			return order, nil
+		FindByIDFn: func(_ context.Context, id string) (*orderDomain.Order, error) {
+			if o, ok := orders[id]; ok {
+				return o, nil
+			}
+			return nil, apiDomain.ErrOrderNotFound
 		},
 	}
+
+	savedCount := 0
 	payRepo := &mockPaymentRepo{
-		SaveFn: func(_ context.Context, _ *paymentDomain.Payment) error { return nil },
-		FindByOrderIDFn: func(_ context.Context, _ string) (*paymentDomain.Payment, error) {
-			return nil, apiDomain.ErrPaymentNotFound
-		},
-		UpdateFromMPFn: func(_ context.Context, _ *paymentDomain.Payment) error { return nil },
-	}
-
-	var capturedInstallments int
-	mpClient := &mockMPClient{
-		CreatePaymentFn: func(_ context.Context, req *paymentDomain.MPPaymentRequest) (*paymentDomain.MPPaymentResponse, error) {
-			capturedInstallments = req.Installments
-			return &paymentDomain.MPPaymentResponse{
-				ID:     1,
-				Status: paymentDomain.StatusPending,
-			}, nil
-		},
-	}
-	svc := application.NewPaymentService(payRepo, orderRepo, mpClient, &mockIDGen{ids: []string{"pay-1", "idem-1"}})
-
-	_, err := svc.CreatePayment(context.Background(), application.CreatePaymentInput{
-		OrderID:      "order-1",
-		UserID:       "user-1",
-		Installments: 0, // should default to 1
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 1, capturedInstallments)
-}
-
-func TestCreatePayment_Approved_UpdatesOrderStatus(t *testing.T) {
-	order := makePendingOrder("order-1", "user-1")
-
-	var updatedStatus orderDomain.OrderStatus
-	orderRepo := &mockOrderRepo{
-		FindByIDFn: func(_ context.Context, _ string) (*orderDomain.Order, error) {
-			return order, nil
-		},
-		UpdateStatusFn: func(_ context.Context, _ string, status orderDomain.OrderStatus) error {
-			updatedStatus = status
+		SaveFn: func(_ context.Context, _ *paymentDomain.Payment) error {
+			savedCount++
 			return nil
 		},
-	}
-	payRepo := &mockPaymentRepo{
-		SaveFn: func(_ context.Context, _ *paymentDomain.Payment) error { return nil },
 		FindByOrderIDFn: func(_ context.Context, _ string) (*paymentDomain.Payment, error) {
 			return nil, apiDomain.ErrPaymentNotFound
 		},
-		UpdateFromMPFn: func(_ context.Context, _ *paymentDomain.Payment) error { return nil },
 	}
 	mpClient := &mockMPClient{
-		CreatePaymentFn: func(_ context.Context, _ *paymentDomain.MPPaymentRequest) (*paymentDomain.MPPaymentResponse, error) {
-			return &paymentDomain.MPPaymentResponse{
-				ID:     99,
-				Status: paymentDomain.StatusApproved,
+		CreatePreferenceFn: func(_ context.Context, req *paymentDomain.MPPreferenceRequest) (*paymentDomain.MPPreferenceResponse, error) {
+			return &paymentDomain.MPPreferenceResponse{
+				PreferenceID: "pref-multi",
+				InitPoint:    "https://mp.com/checkout",
 			}, nil
 		},
 	}
-	svc := application.NewPaymentService(payRepo, orderRepo, mpClient, &mockIDGen{ids: []string{"pay-1", "idem-1"}})
+	idGen := &mockIDGen{ids: []string{"pay-1", "pay-2"}}
 
-	_, err := svc.CreatePayment(context.Background(), application.CreatePaymentInput{
-		OrderID: "order-1",
-		UserID:  "user-1",
+	svc := newService(payRepo, orderRepo, mpClient, idGen)
+	result, err := svc.CreatePreference(context.Background(), application.CreatePreferenceInput{
+		OrderIDs: []string{"order-1", "order-2"},
+		UserID:   "user-1",
 	})
+
 	require.NoError(t, err)
-	assert.Equal(t, orderDomain.StatusConfirmed, updatedStatus)
+	assert.Equal(t, "pref-multi", result.PreferenceID)
+	assert.Equal(t, 2, savedCount, "expected one payment record saved per order")
 }
 
 // --- HandleWebhook ---
 
 func TestHandleWebhook_StatusUpdate(t *testing.T) {
-	existing := paymentDomain.NewPayment("pay-1", "order-1", "user-1", "idem-1", 100.0)
-	// existing status is pending
+	existing := paymentDomain.NewPayment("pay-1", "order-1", "user-1", "pref-1", 100.0)
 
 	payRepo := &mockPaymentRepo{
-		FindByMPPaymentIDFn: func(_ context.Context, _ int64) (*paymentDomain.Payment, error) {
+		FindByOrderIDFn: func(_ context.Context, _ string) (*paymentDomain.Payment, error) {
 			return existing, nil
 		},
 		UpdateFromMPFn: func(_ context.Context, _ *paymentDomain.Payment) error { return nil },
@@ -343,29 +307,29 @@ func TestHandleWebhook_StatusUpdate(t *testing.T) {
 	mpClient := &mockMPClient{
 		GetPaymentFn: func(_ context.Context, _ int64) (*paymentDomain.MPPaymentResponse, error) {
 			return &paymentDomain.MPPaymentResponse{
-				ID:            42,
-				Status:        paymentDomain.StatusApproved,
-				StatusDetail:  "accredited",
-				PaymentMethod: "credit_card",
+				ID:                42,
+				Status:            paymentDomain.StatusApproved,
+				StatusDetail:      "accredited",
+				PaymentMethod:     "credit_card",
+				ExternalReference: "order-1",
 			}, nil
 		},
 	}
 	orderRepo := &mockOrderRepo{
 		UpdateStatusFn: func(_ context.Context, _ string, _ orderDomain.OrderStatus) error { return nil },
 	}
-	svc := application.NewPaymentService(payRepo, orderRepo, mpClient, &mockIDGen{ids: []string{"x"}})
+	svc := newService(payRepo, orderRepo, mpClient, &mockIDGen{ids: []string{"x"}})
 
 	err := svc.HandleWebhook(context.Background(), application.WebhookInput{MPPaymentID: 42})
 	assert.NoError(t, err)
 }
 
 func TestHandleWebhook_SameStatus_NoUpdate(t *testing.T) {
-	existing := paymentDomain.NewPayment("pay-1", "order-1", "user-1", "idem-1", 100.0)
-	// existing status is pending
+	existing := paymentDomain.NewPayment("pay-1", "order-1", "user-1", "pref-1", 100.0)
 
 	updateCalled := false
 	payRepo := &mockPaymentRepo{
-		FindByMPPaymentIDFn: func(_ context.Context, _ int64) (*paymentDomain.Payment, error) {
+		FindByOrderIDFn: func(_ context.Context, _ string) (*paymentDomain.Payment, error) {
 			return existing, nil
 		},
 		UpdateFromMPFn: func(_ context.Context, _ *paymentDomain.Payment) error {
@@ -376,35 +340,53 @@ func TestHandleWebhook_SameStatus_NoUpdate(t *testing.T) {
 	mpClient := &mockMPClient{
 		GetPaymentFn: func(_ context.Context, _ int64) (*paymentDomain.MPPaymentResponse, error) {
 			return &paymentDomain.MPPaymentResponse{
-				ID:     42,
-				Status: paymentDomain.StatusPending, // same status as existing
+				ID:                42,
+				Status:            paymentDomain.StatusPending, // same as existing
+				ExternalReference: "order-1",
 			}, nil
 		},
 	}
-	svc := application.NewPaymentService(payRepo, &mockOrderRepo{}, mpClient, &mockIDGen{ids: []string{"x"}})
+	svc := newService(payRepo, &mockOrderRepo{}, mpClient, &mockIDGen{ids: []string{"x"}})
 
 	err := svc.HandleWebhook(context.Background(), application.WebhookInput{MPPaymentID: 42})
 	assert.NoError(t, err)
 	assert.False(t, updateCalled, "UpdateFromMP should not be called when status is unchanged")
 }
 
-func TestHandleWebhook_UnknownMPPaymentID_ReturnsNil(t *testing.T) {
+func TestHandleWebhook_UnknownOrder_SkipsGracefully(t *testing.T) {
 	payRepo := &mockPaymentRepo{
-		FindByMPPaymentIDFn: func(_ context.Context, _ int64) (*paymentDomain.Payment, error) {
+		FindByOrderIDFn: func(_ context.Context, _ string) (*paymentDomain.Payment, error) {
 			return nil, apiDomain.ErrPaymentNotFound
 		},
 	}
 	mpClient := &mockMPClient{
 		GetPaymentFn: func(_ context.Context, _ int64) (*paymentDomain.MPPaymentResponse, error) {
 			return &paymentDomain.MPPaymentResponse{
-				ID:     99,
-				Status: paymentDomain.StatusApproved,
+				ID:                99,
+				Status:            paymentDomain.StatusApproved,
+				ExternalReference: "unknown-order",
 			}, nil
 		},
 	}
-	svc := application.NewPaymentService(payRepo, &mockOrderRepo{}, mpClient, &mockIDGen{ids: []string{"x"}})
+	svc := newService(payRepo, &mockOrderRepo{}, mpClient, &mockIDGen{ids: []string{"x"}})
 
 	err := svc.HandleWebhook(context.Background(), application.WebhookInput{MPPaymentID: 99})
+	assert.NoError(t, err)
+}
+
+func TestHandleWebhook_EmptyExternalReference_SkipsGracefully(t *testing.T) {
+	mpClient := &mockMPClient{
+		GetPaymentFn: func(_ context.Context, _ int64) (*paymentDomain.MPPaymentResponse, error) {
+			return &paymentDomain.MPPaymentResponse{
+				ID:                1,
+				Status:            paymentDomain.StatusApproved,
+				ExternalReference: "",
+			}, nil
+		},
+	}
+	svc := newService(&mockPaymentRepo{}, &mockOrderRepo{}, mpClient, &mockIDGen{ids: []string{"x"}})
+
+	err := svc.HandleWebhook(context.Background(), application.WebhookInput{MPPaymentID: 1})
 	assert.NoError(t, err)
 }
 
@@ -414,22 +396,63 @@ func TestHandleWebhook_MPError_PropagatesError(t *testing.T) {
 			return nil, errors.New("mp api unavailable")
 		},
 	}
-	svc := application.NewPaymentService(&mockPaymentRepo{}, &mockOrderRepo{}, mpClient, &mockIDGen{ids: []string{"x"}})
+	svc := newService(&mockPaymentRepo{}, &mockOrderRepo{}, mpClient, &mockIDGen{ids: []string{"x"}})
 
 	err := svc.HandleWebhook(context.Background(), application.WebhookInput{MPPaymentID: 1})
 	assert.Error(t, err)
 }
 
+func TestHandleWebhook_MultipleOrders_AllUpdated(t *testing.T) {
+	pay1 := paymentDomain.NewPayment("pay-1", "order-1", "user-1", "pref-1", 100.0)
+	pay2 := paymentDomain.NewPayment("pay-2", "order-2", "user-1", "pref-1", 100.0)
+
+	payments := map[string]*paymentDomain.Payment{
+		"order-1": pay1,
+		"order-2": pay2,
+	}
+	updateCount := 0
+
+	payRepo := &mockPaymentRepo{
+		FindByOrderIDFn: func(_ context.Context, orderID string) (*paymentDomain.Payment, error) {
+			if p, ok := payments[orderID]; ok {
+				return p, nil
+			}
+			return nil, apiDomain.ErrPaymentNotFound
+		},
+		UpdateFromMPFn: func(_ context.Context, _ *paymentDomain.Payment) error {
+			updateCount++
+			return nil
+		},
+	}
+	mpClient := &mockMPClient{
+		GetPaymentFn: func(_ context.Context, _ int64) (*paymentDomain.MPPaymentResponse, error) {
+			return &paymentDomain.MPPaymentResponse{
+				ID:                42,
+				Status:            paymentDomain.StatusApproved,
+				ExternalReference: "order-1,order-2",
+			}, nil
+		},
+	}
+	orderRepo := &mockOrderRepo{
+		UpdateStatusFn: func(_ context.Context, _ string, _ orderDomain.OrderStatus) error { return nil },
+	}
+	svc := newService(payRepo, orderRepo, mpClient, &mockIDGen{ids: []string{"x"}})
+
+	err := svc.HandleWebhook(context.Background(), application.WebhookInput{MPPaymentID: 42})
+	assert.NoError(t, err)
+	assert.Equal(t, 2, updateCount, "both payments should be updated")
+}
+
 // --- GetByID ---
 
 func TestGetByID_HappyPath(t *testing.T) {
-	p := paymentDomain.NewPayment("pay-1", "order-1", "user-1", "idem-1", 100.0)
+	p := paymentDomain.NewPayment("pay-1", "order-1", "user-1", "", 100.0)
 	payRepo := &mockPaymentRepo{
 		FindByIDFn: func(_ context.Context, _ string) (*paymentDomain.Payment, error) {
 			return p, nil
 		},
 	}
-	svc := application.NewPaymentService(payRepo, &mockOrderRepo{}, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
+	svc := newService(payRepo, &mockOrderRepo{}, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
 
 	result, err := svc.GetByID(context.Background(), "pay-1", "user-1")
 	require.NoError(t, err)
@@ -442,20 +465,20 @@ func TestGetByID_NotFound(t *testing.T) {
 			return nil, apiDomain.ErrPaymentNotFound
 		},
 	}
-	svc := application.NewPaymentService(payRepo, &mockOrderRepo{}, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
+	svc := newService(payRepo, &mockOrderRepo{}, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
 
 	_, err := svc.GetByID(context.Background(), "nonexistent", "user-1")
 	assert.ErrorIs(t, err, apiDomain.ErrPaymentNotFound)
 }
 
 func TestGetByID_WrongUser_Forbidden(t *testing.T) {
-	p := paymentDomain.NewPayment("pay-1", "order-1", "owner-user", "idem-1", 100.0)
+	p := paymentDomain.NewPayment("pay-1", "order-1", "owner-user", "", 100.0)
 	payRepo := &mockPaymentRepo{
 		FindByIDFn: func(_ context.Context, _ string) (*paymentDomain.Payment, error) {
 			return p, nil
 		},
 	}
-	svc := application.NewPaymentService(payRepo, &mockOrderRepo{}, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
+	svc := newService(payRepo, &mockOrderRepo{}, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
 
 	_, err := svc.GetByID(context.Background(), "pay-1", "other-user")
 	assert.ErrorIs(t, err, apiDomain.ErrForbidden)
@@ -464,13 +487,13 @@ func TestGetByID_WrongUser_Forbidden(t *testing.T) {
 // --- GetByOrderID ---
 
 func TestGetByOrderID_HappyPath(t *testing.T) {
-	p := paymentDomain.NewPayment("pay-1", "order-1", "user-1", "idem-1", 100.0)
+	p := paymentDomain.NewPayment("pay-1", "order-1", "user-1", "", 100.0)
 	payRepo := &mockPaymentRepo{
 		FindByOrderIDFn: func(_ context.Context, _ string) (*paymentDomain.Payment, error) {
 			return p, nil
 		},
 	}
-	svc := application.NewPaymentService(payRepo, &mockOrderRepo{}, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
+	svc := newService(payRepo, &mockOrderRepo{}, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
 
 	result, err := svc.GetByOrderID(context.Background(), "order-1", "user-1")
 	require.NoError(t, err)
@@ -483,20 +506,20 @@ func TestGetByOrderID_NotFound(t *testing.T) {
 			return nil, apiDomain.ErrPaymentNotFound
 		},
 	}
-	svc := application.NewPaymentService(payRepo, &mockOrderRepo{}, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
+	svc := newService(payRepo, &mockOrderRepo{}, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
 
 	_, err := svc.GetByOrderID(context.Background(), "order-1", "user-1")
 	assert.ErrorIs(t, err, apiDomain.ErrPaymentNotFound)
 }
 
 func TestGetByOrderID_WrongUser_Forbidden(t *testing.T) {
-	p := paymentDomain.NewPayment("pay-1", "order-1", "owner-user", "idem-1", 100.0)
+	p := paymentDomain.NewPayment("pay-1", "order-1", "owner-user", "", 100.0)
 	payRepo := &mockPaymentRepo{
 		FindByOrderIDFn: func(_ context.Context, _ string) (*paymentDomain.Payment, error) {
 			return p, nil
 		},
 	}
-	svc := application.NewPaymentService(payRepo, &mockOrderRepo{}, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
+	svc := newService(payRepo, &mockOrderRepo{}, &mockMPClient{}, &mockIDGen{ids: []string{"x"}})
 
 	_, err := svc.GetByOrderID(context.Background(), "order-1", "other-user")
 	assert.ErrorIs(t, err, apiDomain.ErrForbidden)

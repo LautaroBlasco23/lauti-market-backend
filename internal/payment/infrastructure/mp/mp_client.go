@@ -6,12 +6,14 @@ import (
 
 	"github.com/mercadopago/sdk-go/pkg/config"
 	"github.com/mercadopago/sdk-go/pkg/payment"
+	"github.com/mercadopago/sdk-go/pkg/preference"
 
 	domain "github.com/LautaroBlasco23/lauti-market-backend/internal/payment/domain"
 )
 
 type mpClient struct {
-	client payment.Client
+	paymentClient    payment.Client
+	preferenceClient preference.Client
 }
 
 func NewMPClient(accessToken string) (domain.MPClient, error) {
@@ -19,54 +21,58 @@ func NewMPClient(accessToken string) (domain.MPClient, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating MP config: %w", err)
 	}
-	return &mpClient{client: payment.NewClient(cfg)}, nil
+	return &mpClient{
+		paymentClient:    payment.NewClient(cfg),
+		preferenceClient: preference.NewClient(cfg),
+	}, nil
 }
 
-func (c *mpClient) CreatePayment(ctx context.Context, req *domain.MPPaymentRequest) (*domain.MPPaymentResponse, error) {
-	installments := req.Installments
-	if installments == 0 {
-		installments = 1
+func (c *mpClient) CreatePreference(ctx context.Context, req *domain.MPPreferenceRequest) (*domain.MPPreferenceResponse, error) {
+	items := make([]preference.ItemRequest, 0, len(req.Items))
+	for _, item := range req.Items {
+		items = append(items, preference.ItemRequest{
+			Title:      item.Title,
+			Quantity:   item.Quantity,
+			UnitPrice:  item.UnitPrice,
+			CurrencyID: "ARS",
+		})
 	}
 
-	mpReq := payment.Request{
-		TransactionAmount: req.Amount,
-		Token:             req.CardToken,
-		Description:       req.Description,
-		Installments:      installments,
-		Payer: &payment.PayerRequest{
-			Email:     req.PayerEmail,
-			FirstName: req.PayerFirstName,
-			LastName:  req.PayerLastName,
-			Identification: &payment.IdentificationRequest{
-				Type:   "DNI",
-				Number: req.PayerDNI,
-			},
+	mpReq := preference.Request{
+		Items: items,
+		BackURLs: &preference.BackURLsRequest{
+			Success: req.BackURLs.Success,
+			Failure: req.BackURLs.Failure,
+			Pending: req.BackURLs.Pending,
 		},
+		NotificationURL:   req.NotificationURL,
+		ExternalReference: req.ExternalReference,
 	}
 
-	resp, err := c.client.Create(ctx, mpReq)
+	resp, err := c.preferenceClient.Create(ctx, mpReq)
 	if err != nil {
 		return nil, err
 	}
 
-	return mapResponse(resp), nil
+	return &domain.MPPreferenceResponse{
+		PreferenceID:     resp.ID,
+		InitPoint:        resp.InitPoint,
+		SandboxInitPoint: resp.SandboxInitPoint,
+	}, nil
 }
 
 func (c *mpClient) GetPayment(ctx context.Context, paymentID int64) (*domain.MPPaymentResponse, error) {
-	resp, err := c.client.Get(ctx, int(paymentID))
+	resp, err := c.paymentClient.Get(ctx, int(paymentID))
 	if err != nil {
 		return nil, err
 	}
-	return mapResponse(resp), nil
-}
-
-func mapResponse(resp *payment.Response) *domain.MPPaymentResponse {
 	return &domain.MPPaymentResponse{
-		ID:            int64(resp.ID),
-		Status:        mapStatus(resp.Status),
-		StatusDetail:  resp.StatusDetail,
-		PaymentMethod: resp.PaymentMethodID,
-	}
+		ID:                int64(resp.ID),
+		Status:            mapStatus(resp.Status),
+		StatusDetail:      resp.StatusDetail,
+		PaymentMethod:     resp.PaymentMethodID,
+		ExternalReference: resp.ExternalReference,
+	}, nil
 }
 
 func mapStatus(status string) domain.PaymentStatus {

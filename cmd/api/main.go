@@ -89,6 +89,8 @@ func run() error {
 	paymentinfra.Wire(mux, db, uuidGen, orderModule.Repository, authMw,
 		getEnv("MERCADO_PAGO_ACCESS_TOKEN", ""),
 		getEnv("MERCADO_PAGO_WEBHOOK_SECRET", ""),
+		getEnv("FRONTEND_BASE_URL", "http://localhost:3000"),
+		getEnv("MERCADO_PAGO_NOTIFICATION_URL", ""),
 	)
 
 	// Chain middleware: Logging -> CORS -> Router
