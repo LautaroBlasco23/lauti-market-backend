@@ -43,9 +43,8 @@ services:
       - "8080:8080"
     environment:
       - DB_HOST=postgres
-      - DB_PORT=5432
       - DB_USER=postgres
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PASSWORD=postgres
       - DB_NAME=lauti_market
       - DB_SSLMODE=disable
       - PORT=:8080
@@ -57,14 +56,18 @@ services:
         condition: service_healthy
       image-storage:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "/app/healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
     networks:
       - lauti-market-network
     restart: unless-stopped
 
   image-storage:
-    build:
-      context: ../../image-storage
-      dockerfile: Dockerfile
+    image: lautaroblasco1998/image-storage
     container_name: lauti-market-image-storage
     ports:
       - "50051:50051"
@@ -72,6 +75,7 @@ services:
     environment:
       - STORAGE_BACKEND=local
       - BASE_URL=http://localhost:8087
+      - BIND_ADDR=0.0.0.0
     volumes:
       - image_storage_data:/app/images
     networks:

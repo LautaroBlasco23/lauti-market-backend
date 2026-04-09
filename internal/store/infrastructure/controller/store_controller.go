@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/application"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
@@ -43,7 +44,7 @@ func (h *StoreController) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(toStoreResponse(store))
+	_ = json.NewEncoder(w).Encode(toStoreResponse(store)) //nolint:errcheck
 }
 
 func (h *StoreController) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -59,13 +60,27 @@ func (h *StoreController) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response) //nolint:errcheck
 }
 
 func (h *StoreController) Update(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "missing store id", http.StatusBadRequest)
+		return
+	}
+
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+	if claims.AccountID != id {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
 		return
 	}
 
@@ -78,14 +93,14 @@ func (h *StoreController) Update(w http.ResponseWriter, r *http.Request) {
 	if err := infrastructure.Validate(req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
 			"error":  "invalid_payload",
 			"fields": infrastructure.FieldErrors(err),
 		})
 		return
 	}
 
-	store, err := h.service.Update(r.Context(), application.UpdateStoreInput{
+	store, err := h.service.Update(r.Context(), &application.UpdateStoreInput{
 		ID:          string(id),
 		Name:        req.Name,
 		Description: req.Description,
@@ -98,13 +113,27 @@ func (h *StoreController) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(toStoreResponse(store))
+	_ = json.NewEncoder(w).Encode(toStoreResponse(store)) //nolint:errcheck
 }
 
 func (h *StoreController) Delete(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "missing store id", http.StatusBadRequest)
+		return
+	}
+
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+	if claims.AccountID != id {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
 		return
 	}
 

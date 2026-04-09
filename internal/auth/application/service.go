@@ -85,7 +85,7 @@ func (s *AuthService) RegisterUser(ctx context.Context, input RegisterUserInput)
 	return s.createAuth(ctx, input.Email, input.Password, user.ID, domain.AccountTypeUser)
 }
 
-func (s *AuthService) RegisterStore(ctx context.Context, input RegisterStoreInput) (*RegisterOutput, error) {
+func (s *AuthService) RegisterStore(ctx context.Context, input *RegisterStoreInput) (*RegisterOutput, error) {
 	if err := s.checkEmailAvailable(ctx, input.Email); err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput) (*LoginOutput
 		return nil, apiDomain.ErrInvalidCredentials
 	}
 
-	if err := s.hasher.Compare(auth.Password(), input.Password); err != nil {
+	if compareErr := s.hasher.Compare(auth.Password(), input.Password); compareErr != nil {
 		return nil, apiDomain.ErrInvalidCredentials
 	}
 

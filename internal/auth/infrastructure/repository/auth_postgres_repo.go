@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/domain"
 	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/domain"
 	"github.com/lib/pq"
 )
 

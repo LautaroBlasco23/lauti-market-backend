@@ -1,4 +1,4 @@
-.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-security wait-db start inject-data
+.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-coverage test-security wait-db start fake-data download-images
 .DEFAULT_GOAL := help
 
 help:
@@ -15,6 +15,11 @@ help:
 	@echo "    docker-up          - Start all services"
 	@echo "    docker-down        - Stop services"
 	@echo "    docker-build       - Build API image"
+	@echo ""
+	@echo ""
+	@echo "  📦 Data:"
+	@echo "    fake-data          - Create fake stores and products (ARGS='--products=20')"
+	@echo "    download-images    - Download random product images from Unsplash"
 	@echo ""
 	@echo "  🗄️  Database:"
 	@echo "    db-up              - Start databases"
@@ -103,16 +108,26 @@ inject-data:
 test:
 	gotestsum --format=short-verbose
 
-test-security:
+test-coverage:
+	go test ./... -coverprofile=coverage.out && go tool cover -html=coverage.out
+
+fake-data:
+	@chmod +x scripts/fake-data-creator.sh
+	./scripts/fake-data-creator.sh $(ARGS)
+
+download-images:
 	@[ -f .env ] || (echo ".env not found"; exit 1)
+	set -a && . ./.env && set +a && go run scripts/download-images.go $(ARGS)
+
+test-security:
+	@echo "🧹 Cleaning up previous state..."
+	docker compose down -v 2>/dev/null || true
 	@echo "🐳 Starting containers..."
-	docker compose --env-file .env up -d --build
-	@echo "⏳ Waiting for databases..."
-	@timeout 60 sh -c 'until docker exec lauti-market-postgres pg_isready -U postgres > /dev/null 2>&1; do sleep 2; done' || (echo "❌ DB timeout"; docker compose logs; exit 1)
-	@echo "⏳ Waiting for API..."
-	@timeout 120 sh -c 'until curl -sf http://localhost:8080/health > /dev/null 2>&1; do sleep 2; done' || (echo "❌ API timeout"; docker compose logs; exit 1)
-	@echo "✅ All services ready"
+	$(if $(wildcard .env),docker compose --env-file .env up -d --build,docker compose up -d --build)
+	@echo "⏳ Waiting for containers to be healthy..."
+	@timeout 120 sh -c 'while [ -n "$$(docker compose ps -q | xargs docker inspect --format="{{.State.Health.Status}}" 2>/dev/null | grep -E "starting|unhealthy")" ]; do sleep 2; done' || (echo "❌ Timeout"; docker compose logs; exit 1)
+	@echo "✅ All containers healthy"
 	@echo "🛡️ Running ASVS security tests..."
 	go run ./cmd/securitytest
 	@echo "🧹 Stopping containers..."
-	docker compose down
+	docker compose down -v

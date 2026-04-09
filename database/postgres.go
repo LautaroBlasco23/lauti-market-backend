@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" // postgres driver
 )
 
 type PostgresConfig struct {
@@ -17,7 +17,7 @@ type PostgresConfig struct {
 	SSLMode  string
 }
 
-func (c PostgresConfig) DSN() string {
+func (c *PostgresConfig) DSN() string {
 	return fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		c.Host, c.Port, c.User, c.Password, c.DBName, c.SSLMode,
@@ -28,7 +28,7 @@ type Postgres struct {
 	db *sql.DB
 }
 
-func NewPostgres(cfg PostgresConfig) (*Postgres, error) {
+func NewPostgres(cfg *PostgresConfig) (*Postgres, error) {
 	db, err := sql.Open("postgres", cfg.DSN())
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
@@ -40,7 +40,7 @@ func NewPostgres(cfg PostgresConfig) (*Postgres, error) {
 	db.SetConnMaxIdleTime(1 * time.Minute)
 
 	if err := db.Ping(); err != nil {
-		db.Close()
+		_ = db.Close() //nolint:errcheck
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 

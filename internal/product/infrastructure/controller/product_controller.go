@@ -43,18 +43,32 @@ func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+	if claims.AccountID != storeID {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		http.Error(w, "invalid form", http.StatusBadRequest)
 		return
 	}
 
-	stock, err := strconv.Atoi(r.FormValue("stock"))
-	if err != nil {
+	stock, stockErr := strconv.Atoi(r.FormValue("stock"))
+	if stockErr != nil {
 		http.Error(w, "invalid stock value", http.StatusBadRequest)
 		return
 	}
-	price, err := strconv.ParseFloat(r.FormValue("price"), 64)
-	if err != nil {
+	price, priceErr := strconv.ParseFloat(r.FormValue("price"), 64)
+	if priceErr != nil {
 		http.Error(w, "invalid price value", http.StatusBadRequest)
 		return
 	}
@@ -67,12 +81,12 @@ func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) {
 		Price:       price,
 	}
 
-	if err := infrastructure.Validate(req); err != nil {
+	if validateErr := infrastructure.Validate(req); validateErr != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
 			"error":  "invalid_payload",
-			"fields": infrastructure.FieldErrors(err),
+			"fields": infrastructure.FieldErrors(validateErr),
 		})
 		return
 	}
@@ -88,9 +102,11 @@ func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) {
 
 	file, header, err := r.FormFile("image")
 	if err == nil {
-		defer file.Close()
-		data, err := io.ReadAll(file)
-		if err != nil {
+		defer func() {
+			_ = file.Close() //nolint:errcheck
+		}()
+		data, readErr := io.ReadAll(file)
+		if readErr != nil {
 			http.Error(w, "failed to read image", http.StatusInternalServerError)
 			return
 		}
@@ -103,7 +119,7 @@ func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) {
 		input.ImageContentType = contentType
 	}
 
-	product, err := c.service.Create(r.Context(), input)
+	product, err := c.service.Create(r.Context(), &input)
 	if err != nil {
 		c.handleError(w, err)
 		return
@@ -111,7 +127,7 @@ func (c *ProductController) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(toProductResponse(product))
+	_ = json.NewEncoder(w).Encode(toProductResponse(product)) //nolint:errcheck
 }
 
 func (c *ProductController) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +144,7 @@ func (c *ProductController) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(toProductResponse(product))
+	_ = json.NewEncoder(w).Encode(toProductResponse(product)) //nolint:errcheck
 }
 
 func (c *ProductController) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -169,7 +185,7 @@ func (c *ProductController) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(dto.ProductListResponse{
+	_ = json.NewEncoder(w).Encode(dto.ProductListResponse{ //nolint:errcheck
 		Products: responses,
 		Limit:    limit,
 		Offset:   offset,
@@ -195,13 +211,28 @@ func (c *ProductController) GetByStoreID(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response) //nolint:errcheck
 }
 
 func (c *ProductController) Update(w http.ResponseWriter, r *http.Request) {
+	storeID := r.PathValue("store_id")
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "missing product id", http.StatusBadRequest)
+		return
+	}
+
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+	if claims.AccountID != storeID {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
 		return
 	}
 
@@ -214,14 +245,14 @@ func (c *ProductController) Update(w http.ResponseWriter, r *http.Request) {
 	if err := infrastructure.Validate(req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
 			"error":  "invalid_payload",
 			"fields": infrastructure.FieldErrors(err),
 		})
 		return
 	}
 
-	product, err := c.service.Update(r.Context(), application.UpdateProductInput{
+	product, err := c.service.Update(r.Context(), &application.UpdateProductInput{
 		ID:          id,
 		Name:        req.Name,
 		Description: req.Description,
@@ -236,13 +267,28 @@ func (c *ProductController) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(toProductResponse(product))
+	_ = json.NewEncoder(w).Encode(toProductResponse(product)) //nolint:errcheck
 }
 
 func (c *ProductController) Delete(w http.ResponseWriter, r *http.Request) {
+	storeID := r.PathValue("store_id")
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "missing product id", http.StatusBadRequest)
+		return
+	}
+
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+	if claims.AccountID != storeID {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
 		return
 	}
 
@@ -261,6 +307,21 @@ func (c *ProductController) UploadImage(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "missing store_id or product id", http.StatusBadRequest)
 		return
 	}
+
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+	if claims.AccountID != storeID {
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		http.Error(w, "image too large or invalid form", http.StatusBadRequest)
 		return
@@ -270,7 +331,9 @@ func (c *ProductController) UploadImage(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "missing image field", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close() //nolint:errcheck
+	}()
 	data, err := io.ReadAll(file)
 	if err != nil {
 		http.Error(w, "failed to read image", http.StatusInternalServerError)
@@ -280,7 +343,7 @@ func (c *ProductController) UploadImage(w http.ResponseWriter, r *http.Request) 
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
-	product, err := c.service.UploadImage(r.Context(), application.UploadProductImageInput{
+	product, err := c.service.UploadImage(r.Context(), &application.UploadProductImageInput{
 		ProductID: productID, StoreID: storeID,
 		Filename: header.Filename, ContentType: contentType, Data: data,
 	})
@@ -289,7 +352,7 @@ func (c *ProductController) UploadImage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(toProductResponse(product))
+	_ = json.NewEncoder(w).Encode(toProductResponse(product)) //nolint:errcheck
 }
 
 func (c *ProductController) handleError(w http.ResponseWriter, err error) {

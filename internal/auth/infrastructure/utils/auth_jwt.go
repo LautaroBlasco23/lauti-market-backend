@@ -1,4 +1,5 @@
-package utils
+// Package utils provides JWT utilities for authentication.
+package utils //nolint:revive
 
 import (
 	"time"

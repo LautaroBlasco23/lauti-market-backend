@@ -22,7 +22,8 @@ Each module exposes a `Wire()` function in `infrastructure/wiring.go` that initi
 - [golang-jwt/jwt](https://github.com/golang-jwt/jwt) - JWT tokens
 - [google/uuid](https://github.com/google/uuid) - ID generation
 - [x/crypto](https://pkg.go.dev/golang.org/x/crypto) - bcrypt password hashing
-- [joho/godotenv](https://github.com/joho/godotenv) - `.env` loading
+- [testify](https://github.com/stretchr/testify) - Test assertions and mocking
+- [testcontainers-go](https://github.com/testcontainers/testcontainers-go) - PostgreSQL containers for integration tests
 
 ## Run
 
@@ -40,25 +41,22 @@ make db-up
 make dev
 ```
 
-Server starts on `:8080` (Docker) or the `PORT` env variable (default `:8000` in dev).
+Server starts on `:8080`.
 
-### Seed fake data
-
-With the server running, inject sample stores and products:
+## Testing
 
 ```bash
-make inject-data
+# Unit + controller tests (no Docker required)
+make test
+
+# Include integration and E2E tests (requires Docker)
+go test -tags=integration ./...
+
+# Coverage report (opens browser)
+make test-coverage
+
+# ASVS security tests (requires running Docker stack)
+make test-security
 ```
 
-Optionally set `UNSPLASH_ACCESS_KEY` in `.env` to attach real product images via the Unsplash API. A random suffix is appended to every run so it is safe to call multiple times.
-
-## CI/CD
-
-The GitHub Actions pipeline builds, tests, and pushes a Docker image to Docker Hub on every push to `main`.
-
-Required repository secrets (`Settings → Secrets and variables → Actions`):
-
-| Secret               | Description                                                                 |
-|----------------------|-----------------------------------------------------------------------------|
-| `DOCKERHUB_USERNAME` | Your Docker Hub username                                                    |
-| `DOCKERHUB_TOKEN`    | Docker Hub access token — generate at hub.docker.com → Account Settings → Security |
+Integration and E2E tests use the `//go:build integration` tag and spin up a real PostgreSQL 16-alpine container via testcontainers-go. Migrations are applied automatically.

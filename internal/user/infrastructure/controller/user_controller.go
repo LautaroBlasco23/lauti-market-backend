@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/user/application"
 	userDto "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure/dto"
@@ -24,9 +25,13 @@ func (h *UserController) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	callerID, _ := infrastructure.AccountIDFromContext(r)
-	if callerID != id {
-		writeError(w, http.StatusForbidden, "forbidden")
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, apiDomain.ErrUnauthorized.Error())
+		return
+	}
+	if claims.AccountID != id {
+		writeError(w, http.StatusForbidden, apiDomain.ErrForbidden.Error())
 		return
 	}
 
@@ -50,9 +55,17 @@ func (h *UserController) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	callerID, _ := infrastructure.AccountIDFromContext(r)
-	if callerID != id {
-		writeError(w, http.StatusForbidden, "forbidden")
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, apiDomain.ErrUnauthorized.Error())
+		return
+	}
+	if string(claims.AccountType) != "user" {
+		writeError(w, http.StatusForbidden, apiDomain.ErrForbidden.Error())
+		return
+	}
+	if claims.AccountID != id {
+		writeError(w, http.StatusForbidden, apiDomain.ErrForbidden.Error())
 		return
 	}
 
@@ -65,7 +78,7 @@ func (h *UserController) Update(w http.ResponseWriter, r *http.Request) {
 	if err := infrastructure.Validate(req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
 			"error":  "invalid_payload",
 			"fields": infrastructure.FieldErrors(err),
 		})
@@ -96,9 +109,17 @@ func (h *UserController) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	callerID, _ := infrastructure.AccountIDFromContext(r)
-	if callerID != id {
-		writeError(w, http.StatusForbidden, "forbidden")
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, apiDomain.ErrUnauthorized.Error())
+		return
+	}
+	if string(claims.AccountType) != "user" {
+		writeError(w, http.StatusForbidden, apiDomain.ErrForbidden.Error())
+		return
+	}
+	if claims.AccountID != id {
+		writeError(w, http.StatusForbidden, apiDomain.ErrForbidden.Error())
 		return
 	}
 
@@ -113,7 +134,7 @@ func (h *UserController) Delete(w http.ResponseWriter, r *http.Request) {
 func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data) //nolint:errcheck
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {

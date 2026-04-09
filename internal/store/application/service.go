@@ -60,7 +60,7 @@ func (s *StoreService) GetAll(ctx context.Context, limit, offset int) ([]*domain
 	return s.repo.FindAll(ctx, limit, offset)
 }
 
-func (s *StoreService) Update(ctx context.Context, input UpdateStoreInput) (*domain.Store, error) {
+func (s *StoreService) Update(ctx context.Context, input *UpdateStoreInput) (*domain.Store, error) {
 	store, err := s.repo.FindByID(ctx, input.ID)
 	if err != nil {
 		return nil, err
