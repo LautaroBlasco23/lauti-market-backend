@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -241,7 +242,8 @@ func (c *OrderController) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 
 func (c *OrderController) handleError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, apiDomain.ErrOrderNotFound):
+	case errors.Is(err, apiDomain.ErrOrderNotFound),
+		errors.Is(err, apiDomain.ErrProductNotFound):
 		http.Error(w, err.Error(), http.StatusNotFound)
 	case errors.Is(err, apiDomain.ErrInsufficientStock),
 		errors.Is(err, apiDomain.ErrEmptyOrderItems),
@@ -255,6 +257,7 @@ func (c *OrderController) handleError(w http.ResponseWriter, err error) {
 	case errors.Is(err, apiDomain.ErrUnauthorized):
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 	default:
+		slog.Error("unhandled order error", "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
 }

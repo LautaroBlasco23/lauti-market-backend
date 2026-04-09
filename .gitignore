@@ -43,6 +43,7 @@ tmp/
 # Build artifacts
 *.log
 api
+seed
 
 # Documentation
 .docs/
