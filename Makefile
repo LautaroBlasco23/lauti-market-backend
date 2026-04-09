@@ -43,7 +43,8 @@ wait-db:
 	@echo "✅ Databases ready"
 
 dev: db-up wait-db
-	air -c .air.toml
+	@[ -f .env ] || (echo ".env not found"; exit 1)
+	set -a && . ./.env && set +a && air -c .air.toml
 
 docker-up:
 	@[ -f .env ] || (echo ".env not found"; exit 1)
