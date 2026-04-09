@@ -1,4 +1,4 @@
-.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-coverage test-security wait-db start fake-data download-images
+.PHONY: help install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove test test-coverage test-security wait-db download-images
 .DEFAULT_GOAL := help
 
 help:
@@ -7,7 +7,6 @@ help:
 	@echo "    install-tools      - Install Go tools (gofumpt, golangci-lint, air, gotestsum)"
 	@echo "    code-check         - Format and lint code"
 	@echo "    dev                - Start application with databases"
-	@echo "    start              - Interactive start (dev/docker/prod)"
 	@echo "    test               - Run tests"
 	@echo "    test-security      - Start docker containers and run security tests agains the api"
 	@echo ""
@@ -17,10 +16,6 @@ help:
 	@echo "    docker-build       - Build API image"
 	@echo ""
 	@echo ""
-	@echo "  📦 Data:"
-	@echo "    fake-data          - Create fake stores and products (ARGS='--products=20')"
-	@echo "    download-images    - Download random product images from Unsplash"
-	@echo ""
 	@echo "  🗄️  Database:"
 	@echo "    db-up              - Start databases"
 	@echo "    db-down            - Stop databases"
@@ -29,6 +24,7 @@ help:
 	@echo ""
 	@echo "  🌱 Data:"
 	@echo "    inject-data        - Seed fake stores and products into the running app"
+	@echo "    download-images    - Download random product images from Unsplash"
 
 install-tools:
 	go install mvdan.cc/gofumpt@latest
@@ -48,39 +44,6 @@ wait-db:
 
 dev: db-up wait-db
 	air -c .air.toml
-
-start:
-	@bash scripts/setupEnv.sh
-	@echo ""
-	@echo "🚀 Select how to start the project:"
-	@echo "  1) Dev mode      - Go + air, local dbs, uses .env"
-	@echo "  2) Docker (test) - Full stack in Docker, uses .env.test"
-	@echo "  3) Prod mode     - Optimized Docker stack, uses .env.prod"
-	@echo ""
-	@read -p "Enter choice [1-3]: " choice; \
-	case $$choice in \
-		1) \
-			echo ""; \
-			echo "▶ Starting in dev mode with air (logs below)..."; \
-			$(MAKE) dev || (echo "Dev failed, installing tools and retrying..."; $(MAKE) install-tools; $(MAKE) dev); \
-			;; \
-		2) \
-			echo ""; \
-			echo "▶ Starting Docker stack for testing (showing logs)..."; \
-			[ -f .env.test ] || (echo ".env.test not found"; exit 1); \
-			docker compose --env-file .env.test up; \
-			;; \
-		3) \
-			echo ""; \
-			echo "▶ Starting in production mode (optimized, showing logs)..."; \
-			[ -f .env.prod ] || (echo ".env.prod not found"; exit 1); \
-			docker compose --env-file .env.prod up; \
-			;; \
-		*) \
-			echo "Invalid choice. Aborting."; \
-			exit 1; \
-			;; \
-	esac
 
 docker-up:
 	@[ -f .env ] || (echo ".env not found"; exit 1)
@@ -110,10 +73,6 @@ test:
 
 test-coverage:
 	go test ./... -coverprofile=coverage.out && go tool cover -html=coverage.out
-
-fake-data:
-	@chmod +x scripts/fake-data-creator.sh
-	./scripts/fake-data-creator.sh $(ARGS)
 
 download-images:
 	@[ -f .env ] || (echo ".env not found"; exit 1)

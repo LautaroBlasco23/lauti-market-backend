@@ -7,7 +7,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # Development
 make dev          # Run with hot reload (air)
-make start        # Interactive start (choose: dev, docker test, prod)
 
 # Docker
 make docker-up    # Build and start full stack (API + PostgreSQL + Redis)
