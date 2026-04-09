@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	orderDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/order/domain"
@@ -67,7 +68,7 @@ func (s *PaymentService) CreatePayment(ctx context.Context, input CreatePaymentI
 	p := domain.NewPayment(paymentID, input.OrderID, input.UserID, idempotencyKey, order.TotalPrice())
 
 	if saveErr := s.repo.Save(ctx, p); saveErr != nil {
-		return nil, saveErr
+		return nil, fmt.Errorf("saving payment: %w", saveErr)
 	}
 
 	installments := input.Installments
@@ -90,7 +91,7 @@ func (s *PaymentService) CreatePayment(ctx context.Context, input CreatePaymentI
 	p.UpdateFromMP(mpResp.ID, mpResp.Status, mpResp.StatusDetail, mpResp.PaymentMethod)
 
 	if err := s.repo.UpdateFromMP(ctx, p); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("updating payment from MP: %w", err)
 	}
 
 	if mpResp.Status == domain.StatusApproved {

@@ -224,6 +224,8 @@ func (c *PaymentController) handleError(w http.ResponseWriter, err error) {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 	case errors.Is(err, apiDomain.ErrInvalidPaymentAmount):
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+	case errors.Is(err, apiDomain.ErrForbiddenTransition):
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 	case errors.Is(err, apiDomain.ErrForbidden):
 		http.Error(w, err.Error(), http.StatusForbidden)
 	case errors.Is(err, apiDomain.ErrUnauthorized):

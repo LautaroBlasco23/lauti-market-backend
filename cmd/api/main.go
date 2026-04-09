@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,8 +25,12 @@ import (
 )
 
 func main() {
+	// Initialize pretty logger with colored output
+	apiInfrastructure.InitLogger()
+
 	if err := run(); err != nil {
-		log.Fatal(err)
+		slog.Error("fatal error", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 }
 
@@ -44,7 +48,7 @@ func run() error {
 	}
 	defer func() {
 		if closeErr := postgres.Close(); closeErr != nil {
-			log.Printf("error closing database connection: %v", closeErr)
+			slog.Info("error closing database connection", slog.String("error", closeErr.Error()))
 		}
 	}()
 
@@ -75,7 +79,7 @@ func run() error {
 	}
 	defer func() {
 		if closeErr := imageModule.Close(); closeErr != nil {
-			log.Printf("error closing image module: %v", closeErr)
+			slog.Info("error closing image module", slog.String("error", closeErr.Error()))
 		}
 	}()
 
@@ -87,9 +91,13 @@ func run() error {
 		getEnv("MERCADO_PAGO_WEBHOOK_SECRET", ""),
 	)
 
+	// Chain middleware: Logging -> CORS -> Router
+	// Logging is outermost to capture all requests including CORS preflight
+	handler := apiInfrastructure.LoggingMiddleware(apiInfrastructure.CORSMiddleware(mux))
+
 	server := &http.Server{
 		Addr:         getEnv("PORT", ":8000"),
-		Handler:      apiInfrastructure.CORSMiddleware(mux),
+		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -97,7 +105,7 @@ func run() error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		log.Printf("Server starting on %s", server.Addr)
+		slog.Info("server starting", slog.String("addr", server.Addr))
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
@@ -109,7 +117,7 @@ func run() error {
 
 	select {
 	case <-quit:
-		log.Println("Shutting down server...")
+		slog.Info("shutting down server")
 	case err := <-errCh:
 		return fmt.Errorf("server error: %w", err)
 	}
