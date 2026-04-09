@@ -21,4 +21,5 @@ type RegisterResponse struct {
 	AccountID   string `json:"account_id"`
 	AccountType string `json:"account_type"`
 	Email       string `json:"email"`
+	Token       string `json:"token"`
 }

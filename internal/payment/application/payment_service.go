@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/mercadopago/sdk-go/pkg/mperror"
+
 	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	orderDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/order/domain"
 	domain "github.com/LautaroBlasco23/lauti-market-backend/internal/payment/domain"
@@ -85,7 +87,7 @@ func (s *PaymentService) CreatePayment(ctx context.Context, input CreatePaymentI
 		IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
-		return nil, apiDomain.ErrPaymentFailed
+		return nil, fmt.Errorf("%w: %v", apiDomain.ErrPaymentFailed, extractMPError(err))
 	}
 
 	p.UpdateFromMP(mpResp.ID, mpResp.Status, mpResp.StatusDetail, mpResp.PaymentMethod)
@@ -156,4 +158,18 @@ func (s *PaymentService) GetByOrderID(ctx context.Context, orderID, accountID st
 	}
 
 	return p, nil
+}
+
+// extractMPError extracts a readable error message from MercadoPago SDK errors.
+func extractMPError(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	var mpErr *mperror.ResponseError
+	if errors.As(err, &mpErr) {
+		return mpErr.Message
+	}
+
+	return err.Error()
 }

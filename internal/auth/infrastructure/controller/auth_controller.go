@@ -54,6 +54,7 @@ func (h *Controller) RegisterUser(w http.ResponseWriter, r *http.Request) {
 		AccountID:   string(output.AccountID),
 		AccountType: string(output.AccountType),
 		Email:       output.Email,
+		Token:       output.Token,
 	})
 }
 
@@ -94,6 +95,7 @@ func (h *Controller) RegisterStore(w http.ResponseWriter, r *http.Request) {
 		AccountID:   string(output.AccountID),
 		AccountType: string(output.AccountType),
 		Email:       output.Email,
+		Token:       output.Token,
 	})
 }
 

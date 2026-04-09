@@ -66,6 +66,7 @@ type RegisterOutput struct {
 	AccountID   string
 	AccountType domain.AccountType
 	Email       string
+	Token       string
 }
 
 func (s *AuthService) RegisterUser(ctx context.Context, input RegisterUserInput) (*RegisterOutput, error) {
@@ -130,7 +131,13 @@ func (s *AuthService) createAuth(
 		return nil, err
 	}
 
-	if err := s.repo.Save(ctx, auth); err != nil {
+	err = s.repo.Save(ctx, auth)
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := s.tokenGen.Generate(auth.ID(), auth.AccountType(), auth.AccountID())
+	if err != nil {
 		return nil, err
 	}
 
@@ -139,6 +146,7 @@ func (s *AuthService) createAuth(
 		AccountID:   accountID,
 		AccountType: accountType,
 		Email:       auth.Email(),
+		Token:       token,
 	}, nil
 }
 

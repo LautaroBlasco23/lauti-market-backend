@@ -147,7 +147,12 @@ func TestRegisterUser_HappyPath(t *testing.T) {
 	hasher := &mockHasher{
 		HashFn: func(password string) (string, error) { return "hashed-password", nil },
 	}
-	c := makeAuthController(authRepo, userRepo, &mockStoreRepo{}, hasher, &mockTokenGen{}, &mockIDGen{id: "new-id"})
+	tokenGen := &mockTokenGen{
+		GenerateFn: func(authID string, accountType authDomain.AccountType, accountID string) (string, error) {
+			return "jwt-token", nil
+		},
+	}
+	c := makeAuthController(authRepo, userRepo, &mockStoreRepo{}, hasher, tokenGen, &mockIDGen{id: "new-id"})
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/register/user", jsonBody(t, map[string]string{
 		"email": "test@example.com", "password": "password123",
@@ -218,7 +223,12 @@ func TestRegisterStore_HappyPath(t *testing.T) {
 	hasher := &mockHasher{
 		HashFn: func(password string) (string, error) { return "hashed-password", nil },
 	}
-	c := makeAuthController(authRepo, &mockUserRepo{}, storeRepo, hasher, &mockTokenGen{}, &mockIDGen{id: "new-id"})
+	tokenGen := &mockTokenGen{
+		GenerateFn: func(authID string, accountType authDomain.AccountType, accountID string) (string, error) {
+			return "jwt-token", nil
+		},
+	}
+	c := makeAuthController(authRepo, &mockUserRepo{}, storeRepo, hasher, tokenGen, &mockIDGen{id: "new-id"})
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/register/store", jsonBody(t, map[string]string{
 		"email":        "store@example.com",
