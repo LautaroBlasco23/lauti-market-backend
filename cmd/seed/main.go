@@ -217,7 +217,9 @@ var categories = []categoryDef{
 }
 
 func main() {
-	_ = godotenv.Load()
+	if err := godotenv.Load(); err != nil {
+		log.Printf("no .env file: %v", err)
+	}
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -236,7 +238,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Server is not reachable at %s: %v", *baseURL, err)
 	}
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		log.Printf("closing health check body: %v", err)
+	}
 	if resp.StatusCode != http.StatusOK {
 		log.Fatalf("Health check returned unexpected status %d", resp.StatusCode)
 	}
@@ -251,7 +255,7 @@ func main() {
 	var totalStores, totalProducts, failedStores, failedProducts int
 
 	for _, seller := range sellers {
-		accountID, ok := registerStore(client, *baseURL, seller)
+		accountID, ok := registerStore(client, *baseURL, &seller)
 		if !ok {
 			failedStores++
 			continue
@@ -259,7 +263,7 @@ func main() {
 		totalStores++
 
 		for _, product := range seller.Products {
-			if createProduct(client, *baseURL, accountID, product, unsplashKey) {
+			if createProduct(client, *baseURL, accountID, &product, unsplashKey) {
 				totalProducts++
 			} else {
 				failedProducts++
@@ -282,13 +286,13 @@ func generateSellers(rng *rand.Rand, suffix string) []sellerSeed {
 	perm := rng.Perm(len(categories))[:n]
 	out := make([]sellerSeed, 0, n)
 	for i, idx := range perm {
-		out = append(out, generateSeller(rng, categories[idx], suffix, i))
+		out = append(out, generateSeller(rng, &categories[idx], suffix, i))
 	}
 	return out
 }
 
 // generateSeller picks a random store name, address and 6-9 products from the category pool.
-func generateSeller(rng *rand.Rand, cat categoryDef, suffix string, index int) sellerSeed {
+func generateSeller(rng *rand.Rand, cat *categoryDef, suffix string, index int) sellerSeed {
 	storeName := cat.StoreNames[rng.Intn(len(cat.StoreNames))]
 	description := cat.StoreDescriptions[rng.Intn(len(cat.StoreDescriptions))]
 
@@ -319,7 +323,7 @@ func generateSeller(rng *rand.Rand, cat categoryDef, suffix string, index int) s
 
 // generateProducts picks N distinct templates from the category and decorates each
 // with a random adjective + model code so names rarely collide across runs.
-func generateProducts(rng *rand.Rand, cat categoryDef, n int) []productSeed {
+func generateProducts(rng *rand.Rand, cat *categoryDef, n int) []productSeed {
 	if n > len(cat.Products) {
 		n = len(cat.Products)
 	}
@@ -347,7 +351,7 @@ func generateProducts(rng *rand.Rand, cat categoryDef, n int) []productSeed {
 }
 
 // registerStore POSTs to /auth/register/store and returns the account_id on success.
-func registerStore(client *http.Client, baseURL string, seller sellerSeed) (string, bool) {
+func registerStore(client *http.Client, baseURL string, seller *sellerSeed) (string, bool) {
 	payload := map[string]string{
 		"email":        seller.Email,
 		"password":     seller.Password,
@@ -365,7 +369,10 @@ func registerStore(client *http.Client, baseURL string, seller sellerSeed) (stri
 
 	switch status {
 	case http.StatusCreated:
-		accountID, _ := body["account_id"].(string)
+		accountID, ok := body["account_id"].(string)
+		if !ok {
+			log.Printf("[store] WARNING: account_id missing in response for %q", seller.Name)
+		}
 		log.Printf("[store] Created %q (account_id=%s)", seller.Name, accountID)
 		return accountID, true
 	case http.StatusConflict:
@@ -379,7 +386,7 @@ func registerStore(client *http.Client, baseURL string, seller sellerSeed) (stri
 
 // createProduct POSTs multipart form data to /stores/{storeID}/products, then
 // patches the image_url via PUT if Unsplash returns a random photo for the query.
-func createProduct(client *http.Client, baseURL, storeID string, product productSeed, unsplashKey string) bool {
+func createProduct(client *http.Client, baseURL, storeID string, product *productSeed, unsplashKey string) bool {
 	fields := map[string]string{
 		"name":        product.Name,
 		"description": product.Description,
@@ -399,7 +406,10 @@ func createProduct(client *http.Client, baseURL, storeID string, product product
 		return false
 	}
 
-	productID, _ := body["id"].(string)
+	productID, ok := body["id"].(string)
+	if !ok {
+		log.Printf("[product] WARNING: id missing in response for %q", product.Name)
+	}
 	log.Printf("[product] Created %q (id=%s)", product.Name, productID)
 
 	if unsplashKey == "" || productID == "" {
@@ -450,7 +460,11 @@ func fetchUnsplashURL(client *http.Client, accessKey, query string) (string, err
 	if err != nil {
 		return "", fmt.Errorf("calling unsplash API: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("closing response body: %v", closeErr)
+		}
+	}()
 
 	// Unsplash returns 404 when no photo matches the query.
 	if resp.StatusCode == http.StatusNotFound {
@@ -534,7 +548,11 @@ func doRequest(client *http.Client, req *http.Request) (map[string]any, int, err
 	if err != nil {
 		return nil, 0, fmt.Errorf("sending request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("closing response body: %v", closeErr)
+		}
+	}()
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
