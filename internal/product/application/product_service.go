@@ -62,13 +62,32 @@ func (s *ProductService) Create(ctx context.Context, input *CreateProductInput) 
 		slog.String("category", input.Category),
 	)
 
-	if _, err := s.storeRepo.FindByID(ctx, input.StoreID); err != nil {
+	store, err := s.storeRepo.FindByID(ctx, input.StoreID)
+	if err != nil {
 		slog.Error("ProductService.Create failed",
 			slog.String("operation", "find_store_by_id"),
 			slog.String("store_id", input.StoreID),
 			slog.Any("error", err),
 		)
 		return nil, err
+	}
+
+	if !store.IsMPConnected() {
+		slog.Error("ProductService.Create failed",
+			slog.String("operation", "check_mp_connected"),
+			slog.String("store_id", input.StoreID),
+			slog.String("error", "store does not have a connected MercadoPago account"),
+		)
+		return nil, apiDomain.ErrStoreMPNotConnected
+	}
+
+	if !store.IsMPTokenValid() {
+		slog.Error("ProductService.Create failed",
+			slog.String("operation", "check_mp_token_valid"),
+			slog.String("store_id", input.StoreID),
+			slog.String("error", "store MercadoPago token is invalid or expired"),
+		)
+		return nil, apiDomain.ErrStoreMPTokenExpired
 	}
 
 	id := s.idGen.Generate()
@@ -80,19 +99,19 @@ func (s *ProductService) Create(ctx context.Context, input *CreateProductInput) 
 			slog.String("filename", input.ImageFilename),
 			slog.Int("data_size", len(input.ImageData)),
 		)
-		result, err := s.imageClient.UploadImage(ctx, imageDomain.UploadImageInput{
+		result, uploadErr := s.imageClient.UploadImage(ctx, imageDomain.UploadImageInput{
 			UserID:      id,
 			Filename:    input.ImageFilename,
 			ContentType: input.ImageContentType,
 			Data:        input.ImageData,
 		})
-		if err != nil {
+		if uploadErr != nil {
 			slog.Error("ProductService.Create failed",
 				slog.String("operation", "upload_image"),
 				slog.String("filename", input.ImageFilename),
-				slog.Any("error", err),
+				slog.Any("error", uploadErr),
 			)
-			return nil, fmt.Errorf("uploading image: %w", err)
+			return nil, fmt.Errorf("uploading image: %w", uploadErr)
 		}
 		imageURL = &result.URL
 	}

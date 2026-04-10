@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -109,10 +110,17 @@ func existingStore(id string) *storeDomain.Store {
 	return s
 }
 
+func existingStoreWithMP(id string) *storeDomain.Store {
+	s := existingStore(id)
+	// Connect MP with a far future expiration to ensure token is valid
+	s.ConnectMP("mp-user-123", "access-token", "refresh-token", time.Now().Add(24*time.Hour))
+	return s
+}
+
 func storeFoundRepo(id string) *mockStoreRepo {
 	return &mockStoreRepo{
 		FindByIDFn: func(_ context.Context, _ string) (*storeDomain.Store, error) {
-			return existingStore(id), nil
+			return existingStoreWithMP(id), nil
 		},
 	}
 }

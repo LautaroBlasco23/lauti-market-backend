@@ -606,6 +606,10 @@ func (c *ProductController) handleError(w http.ResponseWriter, err error) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 	case errors.Is(err, storeDomain.ErrStoreNotFound):
 		http.Error(w, err.Error(), http.StatusNotFound)
+	case errors.Is(err, apiDomain.ErrStoreMPNotConnected):
+		http.Error(w, err.Error(), http.StatusForbidden)
+	case errors.Is(err, apiDomain.ErrStoreMPTokenExpired):
+		http.Error(w, err.Error(), http.StatusForbidden)
 	case errors.Is(err, apiDomain.ErrInvalidProductName), errors.Is(err, apiDomain.ErrInvalidProductDescription), errors.Is(err, apiDomain.ErrInvalidStock), errors.Is(err, apiDomain.ErrInvalidPrice), errors.Is(err, apiDomain.ErrInvalidStoreID), errors.Is(err, apiDomain.ErrInvalidCategory):
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	default:

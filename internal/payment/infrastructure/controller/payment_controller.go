@@ -17,6 +17,7 @@ import (
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/payment/application"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/payment/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/payment/infrastructure/dto"
+	storeDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
 )
 
 type PaymentController struct {
@@ -342,7 +343,8 @@ func validateWebhookSignature(sigHeader, paymentID, requestID, secret string) er
 func (c *PaymentController) handleError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, apiDomain.ErrPaymentNotFound),
-		errors.Is(err, apiDomain.ErrOrderNotFound):
+		errors.Is(err, apiDomain.ErrOrderNotFound),
+		errors.Is(err, storeDomain.ErrStoreNotFound):
 		http.Error(w, err.Error(), http.StatusNotFound)
 	case errors.Is(err, apiDomain.ErrPaymentAlreadyExists):
 		http.Error(w, err.Error(), http.StatusConflict)
@@ -352,7 +354,9 @@ func (c *PaymentController) handleError(w http.ResponseWriter, err error) {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 	case errors.Is(err, apiDomain.ErrForbiddenTransition):
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
-	case errors.Is(err, apiDomain.ErrForbidden):
+	case errors.Is(err, apiDomain.ErrForbidden),
+		errors.Is(err, apiDomain.ErrStoreMPNotConnected),
+		errors.Is(err, apiDomain.ErrStoreMPTokenExpired):
 		http.Error(w, err.Error(), http.StatusForbidden)
 	case errors.Is(err, apiDomain.ErrUnauthorized):
 		http.Error(w, err.Error(), http.StatusUnauthorized)

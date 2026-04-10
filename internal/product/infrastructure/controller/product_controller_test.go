@@ -123,6 +123,8 @@ func newTestStore(id string) *storeDomain.Store {
 		Address:     "123 Test St",
 		PhoneNumber: "12345678",
 	})
+	// Connect MP with a far future expiration to ensure token is valid
+	s.ConnectMP("mp-user-123", "access-token", "refresh-token", time.Now().Add(24*time.Hour))
 	return s
 }
 
