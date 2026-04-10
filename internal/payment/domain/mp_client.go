@@ -20,6 +20,7 @@ type MPPreferenceRequest struct {
 	NotificationURL   string
 	ExternalReference string
 	MarketplaceFee    float64
+	AutoReturn        string
 }
 
 type MPPreferenceResponse struct {

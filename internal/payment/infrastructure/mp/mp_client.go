@@ -61,6 +61,7 @@ func (c *mpClient) createPreferenceWithClient(ctx context.Context, prefClient pr
 		},
 		NotificationURL:   req.NotificationURL,
 		ExternalReference: req.ExternalReference,
+		AutoReturn:        req.AutoReturn,
 	}
 
 	if req.MarketplaceFee > 0 {
