@@ -278,7 +278,6 @@ func (s *PaymentService) CreateCartPreference(ctx context.Context, input CreateC
 
 	// Validate all products and collect store IDs
 	storeIDs := make(map[string]bool)
-	var totalAmount float64
 	items := make([]domain.MPPreferenceItem, 0, len(input.Items))
 
 	for _, item := range input.Items {
@@ -313,7 +312,6 @@ func (s *PaymentService) CreateCartPreference(ctx context.Context, input CreateC
 			Quantity:  item.Quantity,
 			UnitPrice: item.UnitPrice,
 		})
-		totalAmount += item.UnitPrice * float64(item.Quantity)
 	}
 
 	// Multi-store checkout: verify all stores have MP connected
@@ -347,9 +345,6 @@ func (s *PaymentService) CreateCartPreference(ctx context.Context, input CreateC
 		}
 	}
 
-	// Calculate marketplace fee (5% of total)
-	marketplaceFee := totalAmount * marketplaceFeePercent / 100
-
 	// Use userID + unique ID as external reference (orders don't exist yet)
 	externalRef := fmt.Sprintf("cart_%s_%s", input.UserID, s.idGen.Generate())
 	frontendBase := s.cfg.FrontendBaseURL
@@ -361,11 +356,12 @@ func (s *PaymentService) CreateCartPreference(ctx context.Context, input CreateC
 		slog.String("external_reference", externalRef),
 		slog.Int("item_count", len(items)),
 		slog.Int("store_count", len(storeIDs)),
-		slog.Float64("marketplace_fee", marketplaceFee),
 	)
 
-	// Create preference using marketplace credentials (not seller token)
-	// This allows a single payment for items from multiple stores
+	// Create preference using marketplace credentials (not seller token).
+	// marketplace_fee is intentionally omitted here: that field is only valid when
+	// the preference is created with a seller's OAuth token (split-payment flow).
+	// Using it with our own marketplace token causes MercadoPago to return an auth error.
 	mpResp, err := s.mpClient.CreatePreference(ctx, &domain.MPPreferenceRequest{
 		Items: items,
 		BackURLs: domain.MPBackURLs{
@@ -375,7 +371,6 @@ func (s *PaymentService) CreateCartPreference(ctx context.Context, input CreateC
 		},
 		NotificationURL:   s.cfg.NotificationURL,
 		ExternalReference: externalRef,
-		MarketplaceFee:    marketplaceFee,
 	})
 	if err != nil {
 		slog.Error("PaymentService.CreateCartPreference failed",
