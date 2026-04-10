@@ -16,11 +16,12 @@ import (
 )
 
 type StoreController struct {
-	service *application.StoreService
+	service         *application.StoreService
+	frontendBaseURL string
 }
 
-func NewStoreController(service *application.StoreService) *StoreController {
-	return &StoreController{service: service}
+func NewStoreController(service *application.StoreService, frontendBaseURL string) *StoreController {
+	return &StoreController{service: service, frontendBaseURL: frontendBaseURL}
 }
 
 func toStoreResponse(s *domain.Store) dto.StoreResponse {
@@ -628,7 +629,7 @@ func (h *StoreController) HandlePublicOAuthCallback(w http.ResponseWriter, r *ht
 			slog.String("store_id", state),
 			slog.Any("error", err),
 		)
-		http.Redirect(w, r, "/seller?mp_error=connection_failed", http.StatusTemporaryRedirect)
+		http.Redirect(w, r, h.frontendBaseURL+"/seller?mp_error=connection_failed", http.StatusTemporaryRedirect)
 		return
 	}
 
@@ -638,7 +639,7 @@ func (h *StoreController) HandlePublicOAuthCallback(w http.ResponseWriter, r *ht
 	)
 
 	// Redirect to seller dashboard with success message
-	http.Redirect(w, r, "/seller?mp_connected=true", http.StatusTemporaryRedirect)
+	http.Redirect(w, r, h.frontendBaseURL+"/seller?mp_connected=true", http.StatusTemporaryRedirect)
 }
 
 func (h *StoreController) handleError(w http.ResponseWriter, err error) {

@@ -82,7 +82,7 @@ func run() error {
 		getEnv("MP_CLIENT_SECRET", ""),
 		getEnv("MP_REDIRECT_URI", ""),
 	)
-	storeModule := storeinfra.Wire(mux, db, uuidGen, authMw, mpOAuth)
+	storeModule := storeinfra.Wire(mux, db, uuidGen, authMw, mpOAuth, getEnv("FRONTEND_BASE_URL", "http://localhost:3000"))
 
 	authinfra.Wire(mux, db, uuidGen, userModule, storeModule, authUtils.JwtConfig{
 		JWTSecret:     jwtSecret,

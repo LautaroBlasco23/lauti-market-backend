@@ -19,10 +19,10 @@ type StoreModule struct {
 	Controller *storeController.StoreController
 }
 
-func Wire(mux *http.ServeMux, db *sql.DB, idGen apiDomain.IDGenerator, authMw *apiInfra.AuthMiddleware, mpOAuth *mercadopago.OAuthClient) *StoreModule {
+func Wire(mux *http.ServeMux, db *sql.DB, idGen apiDomain.IDGenerator, authMw *apiInfra.AuthMiddleware, mpOAuth *mercadopago.OAuthClient, frontendBaseURL string) *StoreModule {
 	repo := repository.NewStorePostgresRepository(db)
 	service := application.NewService(repo, idGen, mpOAuth)
-	storeController := storeController.NewStoreController(service)
+	storeController := storeController.NewStoreController(service, frontendBaseURL)
 
 	storeRoutes.RegisterRoutes(mux, storeController, authMw)
 
