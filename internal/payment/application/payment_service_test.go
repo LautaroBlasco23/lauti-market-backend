@@ -13,6 +13,7 @@ import (
 	orderDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/order/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/payment/application"
 	paymentDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/payment/domain"
+	productDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/product/domain"
 	storeDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
 )
 
@@ -136,8 +137,28 @@ func makeConfirmedOrder(id, userID string) *orderDomain.Order {
 	)
 }
 
+type mockProductRepo struct {
+	FindByIDFn func(ctx context.Context, id string) (*productDomain.Product, error)
+}
+
+func (m *mockProductRepo) Save(ctx context.Context, p *productDomain.Product) error { return nil }
+func (m *mockProductRepo) FindByID(ctx context.Context, id string) (*productDomain.Product, error) {
+	if m.FindByIDFn != nil {
+		return m.FindByIDFn(ctx, id)
+	}
+	return nil, errors.New("product not found")
+}
+func (m *mockProductRepo) FindAll(ctx context.Context, limit, offset int, category *string) ([]*productDomain.Product, error) {
+	return nil, nil
+}
+func (m *mockProductRepo) FindByStoreID(ctx context.Context, storeID string, limit, offset int) ([]*productDomain.Product, error) {
+	return nil, nil
+}
+func (m *mockProductRepo) Update(ctx context.Context, p *productDomain.Product) error { return nil }
+func (m *mockProductRepo) Delete(ctx context.Context, id string) error                { return nil }
+
 func newService(payRepo paymentDomain.Repository, orderRepo orderDomain.Repository, mpClient paymentDomain.MPClient, idGen apiDomain.IDGenerator) *application.PaymentService {
-	return application.NewPaymentService(payRepo, orderRepo, &mockStoreService{}, mpClient, idGen, application.Config{
+	return application.NewPaymentService(payRepo, orderRepo, &mockProductRepo{}, &mockStoreService{}, mpClient, idGen, application.Config{
 		FrontendBaseURL: "http://localhost:3000",
 	})
 }

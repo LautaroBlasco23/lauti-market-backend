@@ -10,6 +10,7 @@ import (
 	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	orderDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/order/domain"
 	domain "github.com/LautaroBlasco23/lauti-market-backend/internal/payment/domain"
+	productDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/product/domain"
 	storeDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
 )
 
@@ -26,29 +27,32 @@ type StoreService interface {
 }
 
 type PaymentService struct {
-	repo      domain.Repository
-	orderRepo orderDomain.Repository
-	storeSvc  StoreService
-	mpClient  domain.MPClient
-	idGen     apiDomain.IDGenerator
-	cfg       Config
+	repo        domain.Repository
+	orderRepo   orderDomain.Repository
+	productRepo productDomain.Repository
+	storeSvc    StoreService
+	mpClient    domain.MPClient
+	idGen       apiDomain.IDGenerator
+	cfg         Config
 }
 
 func NewPaymentService(
 	repo domain.Repository,
 	orderRepo orderDomain.Repository,
+	productRepo productDomain.Repository,
 	storeSvc StoreService,
 	mpClient domain.MPClient,
 	idGen apiDomain.IDGenerator,
 	cfg Config,
 ) *PaymentService {
 	return &PaymentService{
-		repo:      repo,
-		orderRepo: orderRepo,
-		storeSvc:  storeSvc,
-		mpClient:  mpClient,
-		idGen:     idGen,
-		cfg:       cfg,
+		repo:        repo,
+		orderRepo:   orderRepo,
+		productRepo: productRepo,
+		storeSvc:    storeSvc,
+		mpClient:    mpClient,
+		idGen:       idGen,
+		cfg:         cfg,
 	}
 }
 
@@ -239,6 +243,152 @@ func (s *PaymentService) CreatePreference(ctx context.Context, input CreatePrefe
 		slog.String("preference_id", mpResp.PreferenceID),
 		slog.String("user_id", input.UserID),
 		slog.Int("order_count", len(orders)),
+	)
+	return &PreferenceResult{
+		PreferenceID:     mpResp.PreferenceID,
+		InitPoint:        mpResp.InitPoint,
+		SandboxInitPoint: mpResp.SandboxInitPoint,
+	}, nil
+}
+
+type CreateCartPreferenceInput struct {
+	Items  []CartItemInput
+	UserID string
+}
+
+type CartItemInput struct {
+	ProductID string
+	Quantity  int
+	UnitPrice float64
+}
+
+func (s *PaymentService) CreateCartPreference(ctx context.Context, input CreateCartPreferenceInput) (*PreferenceResult, error) {
+	slog.Debug("PaymentService.CreateCartPreference started",
+		slog.String("user_id", input.UserID),
+		slog.Int("item_count", len(input.Items)),
+	)
+
+	if len(input.Items) == 0 {
+		slog.Error("PaymentService.CreateCartPreference failed",
+			slog.String("operation", "validate_items"),
+			slog.String("error", "no items provided"),
+		)
+		return nil, apiDomain.ErrInvalidPaymentAmount
+	}
+
+	// Validate all products and collect store IDs
+	storeIDs := make(map[string]bool)
+	var totalAmount float64
+	items := make([]domain.MPPreferenceItem, 0, len(input.Items))
+
+	for _, item := range input.Items {
+		slog.Debug("PaymentService.CreateCartPreference fetching product",
+			slog.String("product_id", item.ProductID),
+		)
+
+		product, err := s.productRepo.FindByID(ctx, item.ProductID)
+		if err != nil {
+			slog.Error("PaymentService.CreateCartPreference failed",
+				slog.String("operation", "find_product_by_id"),
+				slog.String("product_id", item.ProductID),
+				slog.Any("error", err),
+			)
+			return nil, fmt.Errorf("product not found: %s", item.ProductID)
+		}
+
+		// Validate price matches
+		if product.Price() != item.UnitPrice {
+			slog.Error("PaymentService.CreateCartPreference failed",
+				slog.String("operation", "validate_price"),
+				slog.String("product_id", item.ProductID),
+				slog.Float64("expected_price", product.Price()),
+				slog.Float64("provided_price", item.UnitPrice),
+			)
+			return nil, apiDomain.ErrInvalidPaymentAmount
+		}
+
+		storeIDs[product.StoreID()] = true
+		items = append(items, domain.MPPreferenceItem{
+			Title:     product.Name(),
+			Quantity:  item.Quantity,
+			UnitPrice: item.UnitPrice,
+		})
+		totalAmount += item.UnitPrice * float64(item.Quantity)
+	}
+
+	// Multi-store checkout: verify all stores have MP connected
+	for storeID := range storeIDs {
+		store, err := s.storeSvc.GetByID(ctx, storeID)
+		if err != nil {
+			slog.Error("PaymentService.CreateCartPreference failed",
+				slog.String("operation", "find_store_by_id"),
+				slog.String("store_id", storeID),
+				slog.Any("error", err),
+			)
+			return nil, storeDomain.ErrStoreNotFound
+		}
+
+		if !store.IsMPConnected() {
+			slog.Error("PaymentService.CreateCartPreference failed",
+				slog.String("operation", "check_mp_connected"),
+				slog.String("store_id", storeID),
+				slog.String("error", "store does not have a connected MercadoPago account"),
+			)
+			return nil, apiDomain.ErrStoreMPNotConnected
+		}
+
+		if !store.IsMPTokenValid() {
+			slog.Error("PaymentService.CreateCartPreference failed",
+				slog.String("operation", "check_mp_token_valid"),
+				slog.String("store_id", storeID),
+				slog.String("error", "store MercadoPago token is invalid or expired"),
+			)
+			return nil, apiDomain.ErrStoreMPTokenExpired
+		}
+	}
+
+	// Calculate marketplace fee (5% of total)
+	marketplaceFee := totalAmount * marketplaceFeePercent / 100
+
+	// Use userID + unique ID as external reference (orders don't exist yet)
+	externalRef := fmt.Sprintf("cart_%s_%s", input.UserID, s.idGen.Generate())
+	frontendBase := s.cfg.FrontendBaseURL
+	if frontendBase == "" {
+		frontendBase = "http://localhost:3000"
+	}
+
+	slog.Debug("PaymentService.CreateCartPreference calling MercadoPago",
+		slog.String("external_reference", externalRef),
+		slog.Int("item_count", len(items)),
+		slog.Int("store_count", len(storeIDs)),
+		slog.Float64("marketplace_fee", marketplaceFee),
+	)
+
+	// Create preference using marketplace credentials (not seller token)
+	// This allows a single payment for items from multiple stores
+	mpResp, err := s.mpClient.CreatePreference(ctx, &domain.MPPreferenceRequest{
+		Items: items,
+		BackURLs: domain.MPBackURLs{
+			Success: frontendBase + "/checkout/success",
+			Failure: frontendBase + "/checkout/failure",
+			Pending: frontendBase + "/checkout/pending",
+		},
+		NotificationURL:   s.cfg.NotificationURL,
+		ExternalReference: externalRef,
+		MarketplaceFee:    marketplaceFee,
+	})
+	if err != nil {
+		slog.Error("PaymentService.CreateCartPreference failed",
+			slog.String("operation", "create_mp_preference"),
+			slog.Any("error", err),
+		)
+		return nil, fmt.Errorf("%w: %w", apiDomain.ErrPaymentFailed, err)
+	}
+
+	slog.Info("PaymentService.CreateCartPreference completed",
+		slog.String("preference_id", mpResp.PreferenceID),
+		slog.String("user_id", input.UserID),
+		slog.Int("store_count", len(storeIDs)),
 	)
 	return &PreferenceResult{
 		PreferenceID:     mpResp.PreferenceID,

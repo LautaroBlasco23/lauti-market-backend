@@ -6,6 +6,16 @@ type CreatePreferenceRequest struct {
 	OrderIDs []string `json:"order_ids" validate:"required,min=1"`
 }
 
+type CreateCartPreferenceRequest struct {
+	Items []CartItem `json:"items" validate:"required,min=1"`
+}
+
+type CartItem struct {
+	ProductID string  `json:"product_id" validate:"required"`
+	Quantity  int     `json:"quantity" validate:"required,min=1"`
+	UnitPrice float64 `json:"unit_price" validate:"required,gt=0"`
+}
+
 type CreatePreferenceResponse struct {
 	PreferenceID     string `json:"preference_id"`
 	InitPoint        string `json:"init_point"`

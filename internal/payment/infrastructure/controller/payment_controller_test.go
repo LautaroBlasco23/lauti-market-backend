@@ -24,6 +24,7 @@ import (
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/payment/application"
 	paymentDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/payment/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/payment/infrastructure/controller"
+	productDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/product/domain"
 	storeDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
 )
 
@@ -135,6 +136,26 @@ func (m *mockStoreService) GetByID(ctx context.Context, id string) (*storeDomain
 	return s, nil
 }
 
+type mockProductRepo struct {
+	FindByIDFn func(ctx context.Context, id string) (*productDomain.Product, error)
+}
+
+func (m *mockProductRepo) Save(ctx context.Context, p *productDomain.Product) error { return nil }
+func (m *mockProductRepo) FindByID(ctx context.Context, id string) (*productDomain.Product, error) {
+	if m.FindByIDFn != nil {
+		return m.FindByIDFn(ctx, id)
+	}
+	return nil, fmt.Errorf("product not found")
+}
+func (m *mockProductRepo) FindAll(ctx context.Context, limit, offset int, category *string) ([]*productDomain.Product, error) {
+	return nil, nil
+}
+func (m *mockProductRepo) FindByStoreID(ctx context.Context, storeID string, limit, offset int) ([]*productDomain.Product, error) {
+	return nil, nil
+}
+func (m *mockProductRepo) Update(ctx context.Context, p *productDomain.Product) error { return nil }
+func (m *mockProductRepo) Delete(ctx context.Context, id string) error                { return nil }
+
 type mockIDGen struct {
 	ids []string
 	idx int
@@ -180,7 +201,7 @@ func makeTestPayment(id, orderID, userID string) *paymentDomain.Payment {
 
 func makeController(payRepo paymentDomain.Repository, orderRepo orderDomain.Repository, mpClient paymentDomain.MPClient, webhookSecret string) *controller.PaymentController {
 	idGen := &mockIDGen{ids: []string{"pay-1", "pay-2"}}
-	svc := application.NewPaymentService(payRepo, orderRepo, &mockStoreService{}, mpClient, idGen, application.Config{
+	svc := application.NewPaymentService(payRepo, orderRepo, &mockProductRepo{}, &mockStoreService{}, mpClient, idGen, application.Config{
 		FrontendBaseURL: "http://localhost:3000",
 	})
 	return controller.NewPaymentController(svc, webhookSecret)

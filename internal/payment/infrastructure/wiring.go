@@ -12,6 +12,7 @@ import (
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/payment/infrastructure/mp"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/payment/infrastructure/repository"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/payment/infrastructure/routes"
+	productDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/product/domain"
 )
 
 type PaymentModule struct {
@@ -25,6 +26,7 @@ func Wire(
 	db *sql.DB,
 	idGen apiDomain.IDGenerator,
 	orderRepo orderDomain.Repository,
+	productRepo productDomain.Repository,
 	storeSvc application.StoreService,
 	authMw *apiInfra.AuthMiddleware,
 	mpAccessToken string,
@@ -38,7 +40,7 @@ func Wire(
 	}
 
 	repo := repository.NewPaymentPostgresRepository(db)
-	service := application.NewPaymentService(repo, orderRepo, storeSvc, mpClient, idGen, application.Config{
+	service := application.NewPaymentService(repo, orderRepo, productRepo, storeSvc, mpClient, idGen, application.Config{
 		FrontendBaseURL: frontendBaseURL,
 		NotificationURL: notificationURL,
 	})

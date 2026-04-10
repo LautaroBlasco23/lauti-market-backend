@@ -93,7 +93,7 @@ func run() error {
 	productModule := productinfra.Wire(mux, db, uuidGen, storeModule.Repository, imageModule.Client, authMw)
 	orderModule := orderinfra.Wire(mux, db, uuidGen, productModule.Repository, authMw)
 
-	paymentinfra.Wire(mux, db, uuidGen, orderModule.Repository, storeModule.Service, authMw,
+	paymentinfra.Wire(mux, db, uuidGen, orderModule.Repository, productModule.Repository, storeModule.Service, authMw,
 		getEnv("MERCADO_PAGO_ACCESS_TOKEN", ""),
 		getEnv("MERCADO_PAGO_WEBHOOK_SECRET", ""),
 		getEnv("FRONTEND_BASE_URL", "http://localhost:3000"),

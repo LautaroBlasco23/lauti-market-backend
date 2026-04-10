@@ -128,6 +128,95 @@ func (c *PaymentController) Create(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (c *PaymentController) CreateCartPreference(w http.ResponseWriter, r *http.Request) {
+	requestID := apiInfra.GetRequestID(r)
+	slog.Debug("PaymentController.CreateCartPreference started",
+		slog.String("request_id", requestID),
+	)
+
+	claims, ok := apiInfra.GetClaims(r.Context())
+	if !ok {
+		slog.Warn("PaymentController.CreateCartPreference failed: unauthorized",
+			slog.String("request_id", requestID),
+		)
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "user" {
+		slog.Warn("PaymentController.CreateCartPreference failed: forbidden - not a user account",
+			slog.String("request_id", requestID),
+			slog.String("account_type", string(claims.AccountType)),
+		)
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+
+	var req dto.CreateCartPreferenceRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		slog.Warn("PaymentController.CreateCartPreference failed: invalid request body",
+			slog.String("request_id", requestID),
+			slog.Any("error", err),
+		)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := apiInfra.Validate(req); err != nil {
+		slog.Warn("PaymentController.CreateCartPreference failed: validation error",
+			slog.String("request_id", requestID),
+			slog.Any("fields", apiInfra.FieldErrors(err)),
+		)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
+			"error":  "invalid_payload",
+			"fields": apiInfra.FieldErrors(err),
+		})
+		return
+	}
+
+	// Convert DTO items to service input
+	items := make([]application.CartItemInput, len(req.Items))
+	for i, item := range req.Items {
+		items[i] = application.CartItemInput{
+			ProductID: item.ProductID,
+			Quantity:  item.Quantity,
+			UnitPrice: item.UnitPrice,
+		}
+	}
+
+	slog.Debug("PaymentController.CreateCartPreference calling service",
+		slog.String("request_id", requestID),
+		slog.String("user_id", claims.AccountID),
+		slog.Int("item_count", len(items)),
+	)
+	result, err := c.service.CreateCartPreference(r.Context(), application.CreateCartPreferenceInput{
+		Items:  items,
+		UserID: claims.AccountID,
+	})
+	if err != nil {
+		slog.Error("PaymentController.CreateCartPreference failed",
+			slog.String("request_id", requestID),
+			slog.Any("error", err),
+		)
+		c.handleError(w, err)
+		return
+	}
+
+	slog.Info("PaymentController.CreateCartPreference completed",
+		slog.String("request_id", requestID),
+		slog.String("preference_id", result.PreferenceID),
+		slog.String("user_id", claims.AccountID),
+	)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(dto.CreatePreferenceResponse{ //nolint:errcheck
+		PreferenceID:     result.PreferenceID,
+		InitPoint:        result.InitPoint,
+		SandboxInitPoint: result.SandboxInitPoint,
+	})
+}
+
 func (c *PaymentController) GetByID(w http.ResponseWriter, r *http.Request) {
 	requestID := apiInfra.GetRequestID(r)
 	slog.Debug("PaymentController.GetByID started",
