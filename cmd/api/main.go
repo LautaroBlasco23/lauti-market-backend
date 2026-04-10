@@ -23,9 +23,18 @@ import (
 	storeinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure/mercadopago"
 	userinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load .env file if it exists
+	if err := godotenv.Load(); err != nil {
+		// Only log if the file exists but failed to load
+		if !os.IsNotExist(err) {
+			slog.Warn("failed to load .env file", slog.String("error", err.Error()))
+		}
+	}
+
 	// Initialize pretty logger with colored output
 	apiInfrastructure.InitLogger()
 
