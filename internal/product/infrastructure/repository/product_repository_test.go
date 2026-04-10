@@ -24,7 +24,12 @@ func TestProductRepository_Save_FindByID(t *testing.T) {
 
 	// Seed a store (required FK)
 	sr := storeRepo.NewStorePostgresRepository(db)
-	store, _ := storeDomain.NewStore("store-1", "Test Store", "A test store description", "123 St", "12345678")
+	store, _ := storeDomain.NewStore("store-1", storeDomain.CreateStoreInput{
+		Name:        "Test Store",
+		Description: "A test store description",
+		Address:     "123 St",
+		PhoneNumber: "12345678",
+	})
 	require.NoError(t, sr.Save(ctx, store))
 
 	pr := repository.NewProductPostgresRepository(db)
@@ -54,7 +59,12 @@ func TestProductRepository_FindAll_WithCategory(t *testing.T) {
 	ctx := context.Background()
 
 	sr := storeRepo.NewStorePostgresRepository(db)
-	store, _ := storeDomain.NewStore("store-1", "Test Store", "A test store description", "123 St", "12345678")
+	store, _ := storeDomain.NewStore("store-1", storeDomain.CreateStoreInput{
+		Name:        "Test Store",
+		Description: "A test store description",
+		Address:     "123 St",
+		PhoneNumber: "12345678",
+	})
 	require.NoError(t, sr.Save(ctx, store))
 
 	pr := repository.NewProductPostgresRepository(db)
@@ -80,8 +90,18 @@ func TestProductRepository_FindByStoreID(t *testing.T) {
 	ctx := context.Background()
 
 	sr := storeRepo.NewStorePostgresRepository(db)
-	store1, _ := storeDomain.NewStore("store-1", "Store One", "A test store description", "123 St", "12345678")
-	store2, _ := storeDomain.NewStore("store-2", "Store Two", "A test store description", "456 St", "87654321")
+	store1, _ := storeDomain.NewStore("store-1", storeDomain.CreateStoreInput{
+		Name:        "Store One",
+		Description: "A test store description",
+		Address:     "123 St",
+		PhoneNumber: "12345678",
+	})
+	store2, _ := storeDomain.NewStore("store-2", storeDomain.CreateStoreInput{
+		Name:        "Store Two",
+		Description: "A test store description",
+		Address:     "456 St",
+		PhoneNumber: "87654321",
+	})
 	require.NoError(t, sr.Save(ctx, store1))
 	require.NoError(t, sr.Save(ctx, store2))
 
@@ -103,7 +123,12 @@ func TestProductRepository_Update(t *testing.T) {
 	ctx := context.Background()
 
 	sr := storeRepo.NewStorePostgresRepository(db)
-	store, _ := storeDomain.NewStore("store-1", "Test Store", "A test store description", "123 St", "12345678")
+	store, _ := storeDomain.NewStore("store-1", storeDomain.CreateStoreInput{
+		Name:        "Test Store",
+		Description: "A test store description",
+		Address:     "123 St",
+		PhoneNumber: "12345678",
+	})
 	require.NoError(t, sr.Save(ctx, store))
 
 	pr := repository.NewProductPostgresRepository(db)
@@ -125,7 +150,12 @@ func TestProductRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 
 	sr := storeRepo.NewStorePostgresRepository(db)
-	store, _ := storeDomain.NewStore("store-1", "Test Store", "A test store description", "123 St", "12345678")
+	store, _ := storeDomain.NewStore("store-1", storeDomain.CreateStoreInput{
+		Name:        "Test Store",
+		Description: "A test store description",
+		Address:     "123 St",
+		PhoneNumber: "12345678",
+	})
 	require.NoError(t, sr.Save(ctx, store))
 
 	pr := repository.NewProductPostgresRepository(db)

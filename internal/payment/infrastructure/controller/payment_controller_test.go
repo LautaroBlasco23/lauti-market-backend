@@ -24,6 +24,7 @@ import (
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/payment/application"
 	paymentDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/payment/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/payment/infrastructure/controller"
+	storeDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
 )
 
 // --- Mocks ---
@@ -86,11 +87,22 @@ func (m *mockOrderRepo) UpdateStatus(ctx context.Context, id string, status orde
 }
 
 type mockMPClient struct {
-	CreatePreferenceFn func(ctx context.Context, req *paymentDomain.MPPreferenceRequest) (*paymentDomain.MPPreferenceResponse, error)
-	GetPaymentFn       func(ctx context.Context, paymentID int64) (*paymentDomain.MPPaymentResponse, error)
+	CreatePreferenceFn          func(ctx context.Context, req *paymentDomain.MPPreferenceRequest) (*paymentDomain.MPPreferenceResponse, error)
+	CreatePreferenceWithTokenFn func(ctx context.Context, accessToken string, req *paymentDomain.MPPreferenceRequest) (*paymentDomain.MPPreferenceResponse, error)
+	GetPaymentFn                func(ctx context.Context, paymentID int64) (*paymentDomain.MPPaymentResponse, error)
 }
 
 func (m *mockMPClient) CreatePreference(ctx context.Context, req *paymentDomain.MPPreferenceRequest) (*paymentDomain.MPPreferenceResponse, error) {
+	if m.CreatePreferenceFn != nil {
+		return m.CreatePreferenceFn(ctx, req)
+	}
+	return nil, apiDomain.ErrPaymentFailed
+}
+
+func (m *mockMPClient) CreatePreferenceWithToken(ctx context.Context, accessToken string, req *paymentDomain.MPPreferenceRequest) (*paymentDomain.MPPreferenceResponse, error) {
+	if m.CreatePreferenceWithTokenFn != nil {
+		return m.CreatePreferenceWithTokenFn(ctx, accessToken, req)
+	}
 	if m.CreatePreferenceFn != nil {
 		return m.CreatePreferenceFn(ctx, req)
 	}
@@ -102,6 +114,25 @@ func (m *mockMPClient) GetPayment(ctx context.Context, paymentID int64) (*paymen
 		return m.GetPaymentFn(ctx, paymentID)
 	}
 	return nil, apiDomain.ErrPaymentNotFound
+}
+
+type mockStoreService struct {
+	GetByIDFn func(ctx context.Context, id string) (*storeDomain.Store, error)
+}
+
+func (m *mockStoreService) GetByID(ctx context.Context, id string) (*storeDomain.Store, error) {
+	if m.GetByIDFn != nil {
+		return m.GetByIDFn(ctx, id)
+	}
+	// Return a connected store by default
+	s, _ := storeDomain.NewStore(id, storeDomain.CreateStoreInput{
+		Name:        "Test Store",
+		Description: "Test",
+		Address:     "123 St",
+		PhoneNumber: "555-0000",
+	})
+	s.ConnectMP("mp-user-123", "test-token", "test-refresh", time.Now().Add(time.Hour))
+	return s, nil
 }
 
 type mockIDGen struct {
@@ -149,7 +180,7 @@ func makeTestPayment(id, orderID, userID string) *paymentDomain.Payment {
 
 func makeController(payRepo paymentDomain.Repository, orderRepo orderDomain.Repository, mpClient paymentDomain.MPClient, webhookSecret string) *controller.PaymentController {
 	idGen := &mockIDGen{ids: []string{"pay-1", "pay-2"}}
-	svc := application.NewPaymentService(payRepo, orderRepo, mpClient, idGen, application.Config{
+	svc := application.NewPaymentService(payRepo, orderRepo, &mockStoreService{}, mpClient, idGen, application.Config{
 		FrontendBaseURL: "http://localhost:3000",
 	})
 	return controller.NewPaymentController(svc, webhookSecret)

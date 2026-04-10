@@ -46,4 +46,8 @@ var (
 	ErrPaymentFailed        = errors.New("payment processing failed")
 	ErrInvalidPaymentAmount = errors.New("payment amount must match order total")
 	ErrInvalidWebhookSig    = errors.New("invalid webhook signature")
+
+	// Store MP errors
+	ErrStoreMPNotConnected = errors.New("store has not connected a MercadoPago account. Please contact the seller")
+	ErrStoreMPTokenExpired = errors.New("store's MercadoPago connection has expired. Please contact the seller")
 )

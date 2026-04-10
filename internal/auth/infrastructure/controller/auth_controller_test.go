@@ -17,6 +17,7 @@ import (
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/auth/infrastructure/controller"
 	storeApp "github.com/LautaroBlasco23/lauti-market-backend/internal/store/application"
 	storeDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure/mercadopago"
 	userApp "github.com/LautaroBlasco23/lauti-market-backend/internal/user/application"
 	userDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/user/domain"
 )
@@ -94,6 +95,9 @@ func (m *mockStoreRepo) Update(ctx context.Context, store *storeDomain.Store) er
 	return m.UpdateFn(ctx, store)
 }
 func (m *mockStoreRepo) Delete(ctx context.Context, id string) error { return m.DeleteFn(ctx, id) }
+func (m *mockStoreRepo) UpdateMPConnection(ctx context.Context, storeID string, fields storeDomain.MPFields) error {
+	return nil
+}
 
 type mockHasher struct {
 	HashFn    func(password string) (string, error)
@@ -120,7 +124,8 @@ func makeAuthController(
 	idGen *mockIDGen,
 ) *controller.Controller {
 	userSvc := userApp.NewService(userRepo, idGen)
-	storeSvc := storeApp.NewService(storeRepo, idGen)
+	mpOAuth := mercadopago.NewOAuthClient("test-client-id", "test-client-secret", "http://localhost/callback")
+	storeSvc := storeApp.NewService(storeRepo, idGen, mpOAuth)
 	svc := application.NewService(authRepo, idGen, hasher, tokenGen, userSvc, storeSvc)
 	return controller.NewController(svc)
 }

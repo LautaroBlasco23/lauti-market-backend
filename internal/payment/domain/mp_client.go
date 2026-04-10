@@ -19,6 +19,7 @@ type MPPreferenceRequest struct {
 	BackURLs          MPBackURLs
 	NotificationURL   string
 	ExternalReference string
+	MarketplaceFee    float64
 }
 
 type MPPreferenceResponse struct {
@@ -37,5 +38,6 @@ type MPPaymentResponse struct {
 
 type MPClient interface {
 	CreatePreference(ctx context.Context, req *MPPreferenceRequest) (*MPPreferenceResponse, error)
+	CreatePreferenceWithToken(ctx context.Context, accessToken string, req *MPPreferenceRequest) (*MPPreferenceResponse, error)
 	GetPayment(ctx context.Context, paymentID int64) (*MPPaymentResponse, error)
 }

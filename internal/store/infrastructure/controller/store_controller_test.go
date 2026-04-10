@@ -18,6 +18,7 @@ import (
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/application"
 	storeDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure/controller"
+	mpOAuth "github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure/mercadopago"
 )
 
 // --- Mocks ---
@@ -46,6 +47,15 @@ func (m *mockStoreRepo) Update(ctx context.Context, store *storeDomain.Store) er
 	return m.UpdateFn(ctx, store)
 }
 func (m *mockStoreRepo) Delete(ctx context.Context, id string) error { return m.DeleteFn(ctx, id) }
+func (m *mockStoreRepo) UpdateMPConnection(ctx context.Context, storeID string, fields storeDomain.MPFields) error {
+	return nil
+}
+
+type mockOAuthClient struct{}
+
+func (m *mockOAuthClient) GetAuthorizationURL(state string) string {
+	return "https://auth.mercadopago.com/authorization?test=true"
+}
 
 type mockIDGen struct{ id string }
 
@@ -65,7 +75,8 @@ func withClaims(t *testing.T, handler http.Handler, accountType, accountID strin
 }
 
 func makeStoreController(repo *mockStoreRepo) *controller.StoreController {
-	svc := application.NewService(repo, &mockIDGen{id: "generated-id"})
+	oauthClient := mpOAuth.NewOAuthClient("test-client-id", "test-client-secret", "http://localhost:3000/callback")
+	svc := application.NewService(repo, &mockIDGen{id: "generated-id"}, oauthClient)
 	return controller.NewStoreController(svc)
 }
 
@@ -77,7 +88,12 @@ func jsonBody(t *testing.T, v any) *bytes.Reader {
 }
 
 func newTestStore(id string) *storeDomain.Store {
-	s, _ := storeDomain.NewStore(id, "Test Store", "A test store description", "123 Test St", "12345678")
+	s, _ := storeDomain.NewStore(id, storeDomain.CreateStoreInput{
+		Name:        "Test Store",
+		Description: "A test store description",
+		Address:     "123 Test St",
+		PhoneNumber: "12345678",
+	})
 	return s
 }
 

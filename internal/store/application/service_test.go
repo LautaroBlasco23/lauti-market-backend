@@ -9,6 +9,7 @@ import (
 
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/application"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure/mercadopago"
 )
 
 // --- Mocks ---
@@ -41,9 +42,15 @@ func (m *mockStoreRepo) Delete(ctx context.Context, id string) error {
 	return m.DeleteFn(ctx, id)
 }
 
+func (m *mockStoreRepo) UpdateMPConnection(ctx context.Context, storeID string, fields domain.MPFields) error {
+	return nil
+}
+
 type mockIDGen struct{ id string }
 
 func (m *mockIDGen) Generate() string { return m.id }
+
+var mockOAuthClient = mercadopago.NewOAuthClient("test-client-id", "test-client-secret", "http://localhost/callback")
 
 // --- Create ---
 
@@ -51,7 +58,7 @@ func TestCreate_HappyPath(t *testing.T) {
 	repo := &mockStoreRepo{
 		SaveFn: func(_ context.Context, _ *domain.Store) error { return nil },
 	}
-	svc := application.NewService(repo, &mockIDGen{"id-1"})
+	svc := application.NewService(repo, &mockIDGen{"id-1"}, mockOAuthClient)
 
 	store, err := svc.Create(context.Background(), application.CreateStoreInput{
 		Name:        "My Store",
@@ -67,7 +74,7 @@ func TestCreate_HappyPath(t *testing.T) {
 
 func TestCreate_InvalidInput(t *testing.T) {
 	repo := &mockStoreRepo{}
-	svc := application.NewService(repo, &mockIDGen{"id-1"})
+	svc := application.NewService(repo, &mockIDGen{"id-1"}, mockOAuthClient)
 
 	_, err := svc.Create(context.Background(), application.CreateStoreInput{
 		Name:        "",
@@ -81,13 +88,18 @@ func TestCreate_InvalidInput(t *testing.T) {
 // --- GetByID ---
 
 func TestGetByID_Found(t *testing.T) {
-	s, _ := domain.NewStore("id-1", "My Store", "Best store", "123 Main St", "555-0100")
+	s, _ := domain.NewStore("id-1", domain.CreateStoreInput{
+		Name:        "My Store",
+		Description: "Best store",
+		Address:     "123 Main St",
+		PhoneNumber: "555-0100",
+	})
 	repo := &mockStoreRepo{
 		FindByIDFn: func(_ context.Context, _ string) (*domain.Store, error) {
 			return s, nil
 		},
 	}
-	svc := application.NewService(repo, &mockIDGen{"id-1"})
+	svc := application.NewService(repo, &mockIDGen{"id-1"}, mockOAuthClient)
 
 	store, err := svc.GetByID(context.Background(), "id-1")
 	require.NoError(t, err)
@@ -100,7 +112,7 @@ func TestGetByID_NotFound(t *testing.T) {
 			return nil, domain.ErrStoreNotFound
 		},
 	}
-	svc := application.NewService(repo, &mockIDGen{"id-1"})
+	svc := application.NewService(repo, &mockIDGen{"id-1"}, mockOAuthClient)
 
 	_, err := svc.GetByID(context.Background(), "id-1")
 	assert.ErrorIs(t, err, domain.ErrStoreNotFound)
@@ -117,7 +129,7 @@ func TestGetAll_DefaultPagination(t *testing.T) {
 			return nil, nil
 		},
 	}
-	svc := application.NewService(repo, &mockIDGen{"id-1"})
+	svc := application.NewService(repo, &mockIDGen{"id-1"}, mockOAuthClient)
 
 	_, err := svc.GetAll(context.Background(), -1, -1)
 	require.NoError(t, err)
@@ -128,14 +140,19 @@ func TestGetAll_DefaultPagination(t *testing.T) {
 // --- Update ---
 
 func TestUpdate_HappyPath(t *testing.T) {
-	s, _ := domain.NewStore("id-1", "My Store", "Best store", "123 Main St", "555-0100")
+	s, _ := domain.NewStore("id-1", domain.CreateStoreInput{
+		Name:        "My Store",
+		Description: "Best store",
+		Address:     "123 Main St",
+		PhoneNumber: "555-0100",
+	})
 	repo := &mockStoreRepo{
 		FindByIDFn: func(_ context.Context, _ string) (*domain.Store, error) {
 			return s, nil
 		},
 		UpdateFn: func(_ context.Context, _ *domain.Store) error { return nil },
 	}
-	svc := application.NewService(repo, &mockIDGen{"id-1"})
+	svc := application.NewService(repo, &mockIDGen{"id-1"}, mockOAuthClient)
 
 	store, err := svc.Update(context.Background(), &application.UpdateStoreInput{
 		ID:          "id-1",
@@ -155,7 +172,7 @@ func TestDelete_HappyPath(t *testing.T) {
 	repo := &mockStoreRepo{
 		DeleteFn: func(_ context.Context, _ string) error { return nil },
 	}
-	svc := application.NewService(repo, &mockIDGen{"id-1"})
+	svc := application.NewService(repo, &mockIDGen{"id-1"}, mockOAuthClient)
 
 	err := svc.Delete(context.Background(), "id-1")
 	assert.NoError(t, err)

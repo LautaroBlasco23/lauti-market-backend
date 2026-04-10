@@ -21,6 +21,7 @@ import (
 	paymentinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/payment/infrastructure"
 	productinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/product/infrastructure"
 	storeinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure"
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure/mercadopago"
 	userinfra "github.com/LautaroBlasco23/lauti-market-backend/internal/user/infrastructure"
 )
 
@@ -66,7 +67,13 @@ func run() error {
 	authMw := apiInfrastructure.NewAuthMiddleware(jwtGen)
 
 	userModule := userinfra.Wire(mux, db, uuidGen, authMw)
-	storeModule := storeinfra.Wire(mux, db, uuidGen, authMw)
+
+	mpOAuth := mercadopago.NewOAuthClient(
+		getEnv("MP_CLIENT_ID", ""),
+		getEnv("MP_CLIENT_SECRET", ""),
+		getEnv("MP_REDIRECT_URI", ""),
+	)
+	storeModule := storeinfra.Wire(mux, db, uuidGen, authMw, mpOAuth)
 
 	authinfra.Wire(mux, db, uuidGen, userModule, storeModule, authUtils.JwtConfig{
 		JWTSecret:     jwtSecret,
@@ -86,7 +93,7 @@ func run() error {
 	productModule := productinfra.Wire(mux, db, uuidGen, storeModule.Repository, imageModule.Client, authMw)
 	orderModule := orderinfra.Wire(mux, db, uuidGen, productModule.Repository, authMw)
 
-	paymentinfra.Wire(mux, db, uuidGen, orderModule.Repository, authMw,
+	paymentinfra.Wire(mux, db, uuidGen, orderModule.Repository, storeModule.Service, authMw,
 		getEnv("MERCADO_PAGO_ACCESS_TOKEN", ""),
 		getEnv("MERCADO_PAGO_WEBHOOK_SECRET", ""),
 		getEnv("FRONTEND_BASE_URL", "http://localhost:3000"),

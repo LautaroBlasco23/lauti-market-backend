@@ -13,6 +13,7 @@ import (
 	authDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/auth/domain"
 	storeApplication "github.com/LautaroBlasco23/lauti-market-backend/internal/store/application"
 	storeDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
+	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/infrastructure/mercadopago"
 	userApplication "github.com/LautaroBlasco23/lauti-market-backend/internal/user/application"
 	userDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/user/domain"
 )
@@ -96,6 +97,10 @@ func (m *mockStoreRepo) Delete(ctx context.Context, id string) error {
 	return m.DeleteFn(ctx, id)
 }
 
+func (m *mockStoreRepo) UpdateMPConnection(ctx context.Context, storeID string, fields storeDomain.MPFields) error {
+	return nil
+}
+
 type mockIDGen struct {
 	id string
 }
@@ -142,7 +147,8 @@ func defaultTokenGen() *mockTokenGen {
 
 func buildService(authRepo *mockAuthRepo, userRepo *mockUserRepo, storeRepo *mockStoreRepo, idGen apiDomain.IDGenerator, hasher application.PasswordHasher, tokenGen application.TokenGenerator) *application.AuthService {
 	userSvc := userApplication.NewService(userRepo, idGen)
-	storeSvc := storeApplication.NewService(storeRepo, idGen)
+	mpOAuth := mercadopago.NewOAuthClient("test-client-id", "test-client-secret", "http://localhost/callback")
+	storeSvc := storeApplication.NewService(storeRepo, idGen, mpOAuth)
 	return application.NewService(authRepo, idGen, hasher, tokenGen, userSvc, storeSvc)
 }
 

@@ -25,6 +25,7 @@ func Wire(
 	db *sql.DB,
 	idGen apiDomain.IDGenerator,
 	orderRepo orderDomain.Repository,
+	storeSvc application.StoreService,
 	authMw *apiInfra.AuthMiddleware,
 	mpAccessToken string,
 	mpWebhookSecret string,
@@ -37,7 +38,7 @@ func Wire(
 	}
 
 	repo := repository.NewPaymentPostgresRepository(db)
-	service := application.NewPaymentService(repo, orderRepo, mpClient, idGen, application.Config{
+	service := application.NewPaymentService(repo, orderRepo, storeSvc, mpClient, idGen, application.Config{
 		FrontendBaseURL: frontendBaseURL,
 		NotificationURL: notificationURL,
 	})

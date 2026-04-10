@@ -14,3 +14,20 @@ type StoreResponse struct {
 	Address     string `json:"address"`
 	PhoneNumber string `json:"phone_number"`
 }
+
+// OAuth DTOs
+
+type OAuthCallbackRequest struct {
+	Code string `json:"code" validate:"required"`
+}
+
+type OAuthConnectResponse struct {
+	AuthURL string `json:"auth_url"`
+}
+
+type MPConnectionStatusResponse struct {
+	Connected    bool   `json:"connected"`
+	ConnectedAt  string `json:"connected_at,omitempty"`
+	ExpiresAt    string `json:"expires_at,omitempty"`
+	IsTokenValid bool   `json:"is_token_valid"`
+}

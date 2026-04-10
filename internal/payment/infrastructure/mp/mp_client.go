@@ -28,6 +28,20 @@ func NewMPClient(accessToken string) (domain.MPClient, error) {
 }
 
 func (c *mpClient) CreatePreference(ctx context.Context, req *domain.MPPreferenceRequest) (*domain.MPPreferenceResponse, error) {
+	return c.createPreferenceWithClient(ctx, c.preferenceClient, req)
+}
+
+func (c *mpClient) CreatePreferenceWithToken(ctx context.Context, accessToken string, req *domain.MPPreferenceRequest) (*domain.MPPreferenceResponse, error) {
+	cfg, err := config.New(accessToken)
+	if err != nil {
+		return nil, fmt.Errorf("creating MP config with seller token: %w", err)
+	}
+
+	prefClient := preference.NewClient(cfg)
+	return c.createPreferenceWithClient(ctx, prefClient, req)
+}
+
+func (c *mpClient) createPreferenceWithClient(ctx context.Context, prefClient preference.Client, req *domain.MPPreferenceRequest) (*domain.MPPreferenceResponse, error) {
 	items := make([]preference.ItemRequest, 0, len(req.Items))
 	for _, item := range req.Items {
 		items = append(items, preference.ItemRequest{
@@ -49,7 +63,11 @@ func (c *mpClient) CreatePreference(ctx context.Context, req *domain.MPPreferenc
 		ExternalReference: req.ExternalReference,
 	}
 
-	resp, err := c.preferenceClient.Create(ctx, mpReq)
+	if req.MarketplaceFee > 0 {
+		mpReq.MarketplaceFee = req.MarketplaceFee
+	}
+
+	resp, err := prefClient.Create(ctx, mpReq)
 	if err != nil {
 		return nil, err
 	}

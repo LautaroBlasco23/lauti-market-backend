@@ -70,6 +70,9 @@ func (m *mockStoreRepo) FindAll(ctx context.Context, limit, offset int) ([]*stor
 }
 func (m *mockStoreRepo) Update(ctx context.Context, store *storeDomain.Store) error { return nil }
 func (m *mockStoreRepo) Delete(ctx context.Context, id string) error                { return nil }
+func (m *mockStoreRepo) UpdateMPConnection(ctx context.Context, storeID string, fields storeDomain.MPFields) error {
+	return nil
+}
 
 type mockImageClient struct {
 	UploadFn func(ctx context.Context, input imageDomain.UploadImageInput) (*imageDomain.UploadImageResult, error)
@@ -114,7 +117,12 @@ func newTestProduct(id, storeID string) *productDomain.Product {
 }
 
 func newTestStore(id string) *storeDomain.Store {
-	s, _ := storeDomain.NewStore(id, "Test Store", "A test store description", "123 Test St", "12345678")
+	s, _ := storeDomain.NewStore(id, storeDomain.CreateStoreInput{
+		Name:        "Test Store",
+		Description: "A test store description",
+		Address:     "123 Test St",
+		PhoneNumber: "12345678",
+	})
 	return s
 }
 

@@ -267,6 +267,308 @@ func (h *StoreController) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *StoreController) GetOAuthConnectURL(w http.ResponseWriter, r *http.Request) {
+	requestID := infrastructure.GetRequestID(r)
+	slog.Debug("StoreController.GetOAuthConnectURL started",
+		slog.String("request_id", requestID),
+	)
+
+	id := r.PathValue("id")
+	if id == "" {
+		slog.Warn("StoreController.GetOAuthConnectURL missing store id",
+			slog.String("request_id", requestID),
+		)
+		http.Error(w, "missing store id", http.StatusBadRequest)
+		return
+	}
+
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		slog.Warn("StoreController.GetOAuthConnectURL unauthorized",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+		)
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" {
+		slog.Warn("StoreController.GetOAuthConnectURL forbidden - wrong account type",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+			slog.String("account_type", string(claims.AccountType)),
+		)
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+	if claims.AccountID != id {
+		slog.Warn("StoreController.GetOAuthConnectURL forbidden - account mismatch",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+			slog.String("account_id", claims.AccountID),
+		)
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+
+	slog.Debug("StoreController.GetOAuthConnectURL calling service",
+		slog.String("request_id", requestID),
+		slog.String("store_id", id),
+	)
+
+	authURL, err := h.service.GetOAuthConnectURL(r.Context(), id)
+	if err != nil {
+		slog.Error("StoreController.GetOAuthConnectURL service error",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+			slog.Any("error", err),
+		)
+		h.handleError(w, err)
+		return
+	}
+
+	slog.Info("StoreController.GetOAuthConnectURL completed",
+		slog.String("request_id", requestID),
+		slog.String("store_id", id),
+	)
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(dto.OAuthConnectResponse{AuthURL: authURL}) //nolint:errcheck
+}
+
+func (h *StoreController) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
+	requestID := infrastructure.GetRequestID(r)
+	slog.Debug("StoreController.HandleOAuthCallback started",
+		slog.String("request_id", requestID),
+	)
+
+	id := r.PathValue("id")
+	if id == "" {
+		slog.Warn("StoreController.HandleOAuthCallback missing store id",
+			slog.String("request_id", requestID),
+		)
+		http.Error(w, "missing store id", http.StatusBadRequest)
+		return
+	}
+
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		slog.Warn("StoreController.HandleOAuthCallback unauthorized",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+		)
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" {
+		slog.Warn("StoreController.HandleOAuthCallback forbidden - wrong account type",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+			slog.String("account_type", string(claims.AccountType)),
+		)
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+	if claims.AccountID != id {
+		slog.Warn("StoreController.HandleOAuthCallback forbidden - account mismatch",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+			slog.String("account_id", claims.AccountID),
+		)
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+
+	var req dto.OAuthCallbackRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		slog.Warn("StoreController.HandleOAuthCallback invalid request body",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+			slog.Any("error", err),
+		)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := infrastructure.Validate(req); err != nil {
+		slog.Warn("StoreController.HandleOAuthCallback validation failed",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+			slog.Any("fields", infrastructure.FieldErrors(err)),
+		)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{ //nolint:errcheck
+			"error":  "invalid_payload",
+			"fields": infrastructure.FieldErrors(err),
+		})
+		return
+	}
+
+	slog.Debug("StoreController.HandleOAuthCallback calling service",
+		slog.String("request_id", requestID),
+		slog.String("store_id", id),
+	)
+
+	if err := h.service.HandleOAuthCallback(r.Context(), id, req.Code); err != nil {
+		slog.Error("StoreController.HandleOAuthCallback service error",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+			slog.Any("error", err),
+		)
+		handleOAuthError(w, err)
+		return
+	}
+
+	slog.Info("StoreController.HandleOAuthCallback completed",
+		slog.String("request_id", requestID),
+		slog.String("store_id", id),
+	)
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *StoreController) GetMPConnectionStatus(w http.ResponseWriter, r *http.Request) {
+	requestID := infrastructure.GetRequestID(r)
+	slog.Debug("StoreController.GetMPConnectionStatus started",
+		slog.String("request_id", requestID),
+	)
+
+	id := r.PathValue("id")
+	if id == "" {
+		slog.Warn("StoreController.GetMPConnectionStatus missing store id",
+			slog.String("request_id", requestID),
+		)
+		http.Error(w, "missing store id", http.StatusBadRequest)
+		return
+	}
+
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		slog.Warn("StoreController.GetMPConnectionStatus unauthorized",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+		)
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" {
+		slog.Warn("StoreController.GetMPConnectionStatus forbidden - wrong account type",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+			slog.String("account_type", string(claims.AccountType)),
+		)
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+	if claims.AccountID != id {
+		slog.Warn("StoreController.GetMPConnectionStatus forbidden - account mismatch",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+			slog.String("account_id", claims.AccountID),
+		)
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+
+	slog.Debug("StoreController.GetMPConnectionStatus calling service",
+		slog.String("request_id", requestID),
+		slog.String("store_id", id),
+	)
+
+	status, err := h.service.GetMPConnectionStatus(r.Context(), id)
+	if err != nil {
+		slog.Error("StoreController.GetMPConnectionStatus service error",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+			slog.Any("error", err),
+		)
+		handleOAuthError(w, err)
+		return
+	}
+
+	slog.Info("StoreController.GetMPConnectionStatus completed",
+		slog.String("request_id", requestID),
+		slog.String("store_id", id),
+	)
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(status) //nolint:errcheck
+}
+
+func (h *StoreController) DisconnectMP(w http.ResponseWriter, r *http.Request) {
+	requestID := infrastructure.GetRequestID(r)
+	slog.Debug("StoreController.DisconnectMP started",
+		slog.String("request_id", requestID),
+	)
+
+	id := r.PathValue("id")
+	if id == "" {
+		slog.Warn("StoreController.DisconnectMP missing store id",
+			slog.String("request_id", requestID),
+		)
+		http.Error(w, "missing store id", http.StatusBadRequest)
+		return
+	}
+
+	claims, ok := infrastructure.GetClaims(r.Context())
+	if !ok {
+		slog.Warn("StoreController.DisconnectMP unauthorized",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+		)
+		http.Error(w, apiDomain.ErrUnauthorized.Error(), http.StatusUnauthorized)
+		return
+	}
+	if string(claims.AccountType) != "store" {
+		slog.Warn("StoreController.DisconnectMP forbidden - wrong account type",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+			slog.String("account_type", string(claims.AccountType)),
+		)
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+	if claims.AccountID != id {
+		slog.Warn("StoreController.DisconnectMP forbidden - account mismatch",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+			slog.String("account_id", claims.AccountID),
+		)
+		http.Error(w, apiDomain.ErrForbidden.Error(), http.StatusForbidden)
+		return
+	}
+
+	slog.Debug("StoreController.DisconnectMP calling service",
+		slog.String("request_id", requestID),
+		slog.String("store_id", id),
+	)
+
+	if err := h.service.DisconnectMP(r.Context(), id); err != nil {
+		slog.Error("StoreController.DisconnectMP service error",
+			slog.String("request_id", requestID),
+			slog.String("store_id", id),
+			slog.Any("error", err),
+		)
+		handleOAuthError(w, err)
+		return
+	}
+
+	slog.Info("StoreController.DisconnectMP completed",
+		slog.String("request_id", requestID),
+		slog.String("store_id", id),
+	)
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func handleOAuthError(w http.ResponseWriter, err error) {
+	slog.Warn("StoreController handling OAuth error",
+		slog.String("error_type", "oauth_error"),
+		slog.Any("error", err),
+	)
+	http.Error(w, err.Error(), http.StatusBadRequest)
+}
+
 func (h *StoreController) handleError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, domain.ErrStoreNotFound):

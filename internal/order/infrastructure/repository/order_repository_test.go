@@ -38,7 +38,12 @@ func TestOrderRepository_Save_FindByID(t *testing.T) {
 	require.NoError(t, ur.Save(ctx, user))
 
 	sr := storeRepo.NewStorePostgresRepository(db)
-	store, _ := storeDomain.NewStore("store-1", "Test Store", "A test store description", "123 St", "12345678")
+	store, _ := storeDomain.NewStore("store-1", storeDomain.CreateStoreInput{
+		Name:        "Test Store",
+		Description: "A test store description",
+		Address:     "123 St",
+		PhoneNumber: "12345678",
+	})
 	require.NoError(t, sr.Save(ctx, store))
 
 	pr := productRepo.NewProductPostgresRepository(db)
@@ -83,7 +88,12 @@ func TestOrderRepository_FindByUserID_Pagination(t *testing.T) {
 	require.NoError(t, ur.Save(ctx, user))
 
 	sr := storeRepo.NewStorePostgresRepository(db)
-	store, _ := storeDomain.NewStore("store-1", "Test Store", "A test store description", "123 St", "12345678")
+	store, _ := storeDomain.NewStore("store-1", storeDomain.CreateStoreInput{
+		Name:        "Test Store",
+		Description: "A test store description",
+		Address:     "123 St",
+		PhoneNumber: "12345678",
+	})
 	require.NoError(t, sr.Save(ctx, store))
 
 	pr := productRepo.NewProductPostgresRepository(db)
@@ -117,7 +127,12 @@ func TestOrderRepository_FindByStoreID(t *testing.T) {
 	require.NoError(t, ur.Save(ctx, user))
 
 	sr := storeRepo.NewStorePostgresRepository(db)
-	store, _ := storeDomain.NewStore("store-1", "Test Store", "A test store description", "123 St", "12345678")
+	store, _ := storeDomain.NewStore("store-1", storeDomain.CreateStoreInput{
+		Name:        "Test Store",
+		Description: "A test store description",
+		Address:     "123 St",
+		PhoneNumber: "12345678",
+	})
 	require.NoError(t, sr.Save(ctx, store))
 
 	pr := productRepo.NewProductPostgresRepository(db)
@@ -144,7 +159,12 @@ func TestOrderRepository_UpdateStatus(t *testing.T) {
 	require.NoError(t, ur.Save(ctx, user))
 
 	sr := storeRepo.NewStorePostgresRepository(db)
-	store, _ := storeDomain.NewStore("store-1", "Test Store", "A test store description", "123 St", "12345678")
+	store, _ := storeDomain.NewStore("store-1", storeDomain.CreateStoreInput{
+		Name:        "Test Store",
+		Description: "A test store description",
+		Address:     "123 St",
+		PhoneNumber: "12345678",
+	})
 	require.NoError(t, sr.Save(ctx, store))
 
 	pr := productRepo.NewProductPostgresRepository(db)

@@ -15,7 +15,12 @@ import (
 )
 
 func newStore(id string) *storeDomain.Store {
-	s, _ := storeDomain.NewStore(id, "Test Store "+id, "A test store description text", "123 Test St", "123456789")
+	s, _ := storeDomain.NewStore(id, storeDomain.CreateStoreInput{
+		Name:        "Test Store " + id,
+		Description: "A test store description text",
+		Address:     "123 Test St",
+		PhoneNumber: "123456789",
+	})
 	return s
 }
 
@@ -53,10 +58,12 @@ func TestStoreRepository_FindAll_Pagination(t *testing.T) {
 	for i := 1; i <= 5; i++ {
 		s, _ := storeDomain.NewStore(
 			"store-"+string(rune('0'+i)),
-			"Store Name "+string(rune('A'+i-1)),
-			"A test store description text",
-			"123 Test St",
-			"123456789",
+			storeDomain.CreateStoreInput{
+				Name:        "Store Name " + string(rune('A'+i-1)),
+				Description: "A test store description text",
+				Address:     "123 Test St",
+				PhoneNumber: "123456789",
+			},
 		)
 		require.NoError(t, repo.Save(ctx, s))
 	}

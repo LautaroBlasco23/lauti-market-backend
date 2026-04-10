@@ -78,6 +78,10 @@ func (m *mockStoreRepo) Delete(ctx context.Context, id string) error {
 	return m.DeleteFn(ctx, id)
 }
 
+func (m *mockStoreRepo) UpdateMPConnection(ctx context.Context, storeID string, fields storeDomain.MPFields) error {
+	return nil
+}
+
 type mockImageClient struct {
 	UploadImageFn func(ctx context.Context, input imageDomain.UploadImageInput) (*imageDomain.UploadImageResult, error)
 }
@@ -93,7 +97,12 @@ func (m *mockIDGen) Generate() string { return m.id }
 // --- Helpers ---
 
 func existingStore(id string) *storeDomain.Store {
-	s, err := storeDomain.NewStore(id, "Store", "Desc", "Address", "555-0000")
+	s, err := storeDomain.NewStore(id, storeDomain.CreateStoreInput{
+		Name:        "Store",
+		Description: "Desc",
+		Address:     "Address",
+		PhoneNumber: "555-0000",
+	})
 	if err != nil {
 		panic(err)
 	}

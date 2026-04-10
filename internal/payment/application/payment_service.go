@@ -10,16 +10,25 @@ import (
 	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	orderDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/order/domain"
 	domain "github.com/LautaroBlasco23/lauti-market-backend/internal/payment/domain"
+	storeDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
 )
+
+const marketplaceFeePercent = 5.0
 
 type Config struct {
 	FrontendBaseURL string
 	NotificationURL string
 }
 
+// StoreService defines the interface needed from store module
+type StoreService interface {
+	GetByID(ctx context.Context, id string) (*storeDomain.Store, error)
+}
+
 type PaymentService struct {
 	repo      domain.Repository
 	orderRepo orderDomain.Repository
+	storeSvc  StoreService
 	mpClient  domain.MPClient
 	idGen     apiDomain.IDGenerator
 	cfg       Config
@@ -28,6 +37,7 @@ type PaymentService struct {
 func NewPaymentService(
 	repo domain.Repository,
 	orderRepo orderDomain.Repository,
+	storeSvc StoreService,
 	mpClient domain.MPClient,
 	idGen apiDomain.IDGenerator,
 	cfg Config,
@@ -35,6 +45,7 @@ func NewPaymentService(
 	return &PaymentService{
 		repo:      repo,
 		orderRepo: orderRepo,
+		storeSvc:  storeSvc,
 		mpClient:  mpClient,
 		idGen:     idGen,
 		cfg:       cfg,
@@ -115,8 +126,53 @@ func (s *PaymentService) CreatePreference(ctx context.Context, input CreatePrefe
 		orders = append(orders, order)
 	}
 
+	// All orders must belong to the same store for seller-specific MP token
+	if len(orders) == 0 {
+		return nil, apiDomain.ErrOrderNotFound
+	}
+	storeID := orders[0].StoreID()
+	for _, order := range orders {
+		if order.StoreID() != storeID {
+			slog.Error("PaymentService.CreatePreference failed",
+				slog.String("operation", "validate_same_store"),
+				slog.String("error", "orders belong to different stores"),
+			)
+			return nil, apiDomain.ErrForbidden
+		}
+	}
+
+	// Fetch store and verify MP connection
+	store, err := s.storeSvc.GetByID(ctx, storeID)
+	if err != nil {
+		slog.Error("PaymentService.CreatePreference failed",
+			slog.String("operation", "find_store_by_id"),
+			slog.String("store_id", storeID),
+			slog.Any("error", err),
+		)
+		return nil, storeDomain.ErrStoreNotFound
+	}
+
+	if !store.IsMPConnected() {
+		slog.Error("PaymentService.CreatePreference failed",
+			slog.String("operation", "check_mp_connected"),
+			slog.String("store_id", storeID),
+			slog.String("error", "store does not have a connected MercadoPago account"),
+		)
+		return nil, apiDomain.ErrStoreMPNotConnected
+	}
+
+	if !store.IsMPTokenValid() {
+		slog.Error("PaymentService.CreatePreference failed",
+			slog.String("operation", "check_mp_token_valid"),
+			slog.String("store_id", storeID),
+			slog.String("error", "store MercadoPago token is invalid or expired"),
+		)
+		return nil, apiDomain.ErrStoreMPTokenExpired
+	}
+
 	// Build preference items from all orders.
 	items := make([]domain.MPPreferenceItem, 0)
+	var totalAmount float64
 	for _, order := range orders {
 		for _, item := range order.Items() {
 			items = append(items, domain.MPPreferenceItem{
@@ -125,7 +181,11 @@ func (s *PaymentService) CreatePreference(ctx context.Context, input CreatePrefe
 				UnitPrice: item.UnitPrice(),
 			})
 		}
+		totalAmount += order.TotalPrice()
 	}
+
+	// Calculate marketplace fee (5% of total)
+	marketplaceFee := totalAmount * marketplaceFeePercent / 100
 
 	externalRef := strings.Join(input.OrderIDs, ",")
 	frontendBase := s.cfg.FrontendBaseURL
@@ -136,8 +196,10 @@ func (s *PaymentService) CreatePreference(ctx context.Context, input CreatePrefe
 	slog.Debug("PaymentService.CreatePreference calling MercadoPago",
 		slog.String("external_reference", externalRef),
 		slog.Int("item_count", len(items)),
+		slog.String("store_id", storeID),
+		slog.Float64("marketplace_fee", marketplaceFee),
 	)
-	mpResp, err := s.mpClient.CreatePreference(ctx, &domain.MPPreferenceRequest{
+	mpResp, err := s.mpClient.CreatePreferenceWithToken(ctx, store.MPAccessToken(), &domain.MPPreferenceRequest{
 		Items: items,
 		BackURLs: domain.MPBackURLs{
 			Success: frontendBase + "/checkout/success",
@@ -146,6 +208,7 @@ func (s *PaymentService) CreatePreference(ctx context.Context, input CreatePrefe
 		},
 		NotificationURL:   s.cfg.NotificationURL,
 		ExternalReference: externalRef,
+		MarketplaceFee:    marketplaceFee,
 	})
 	if err != nil {
 		slog.Error("PaymentService.CreatePreference failed",

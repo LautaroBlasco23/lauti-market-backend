@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log/slog"
+	"time"
 
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/store/domain"
 )
@@ -18,8 +19,8 @@ func NewStorePostgresRepository(db *sql.DB) *StorePostgresRepository {
 
 func (r *StorePostgresRepository) Save(ctx context.Context, store *domain.Store) error {
 	query := `
-		INSERT INTO stores (id, name, description, address, phone_number)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO stores (id, name, description, address, phone_number, mp_user_id, mp_access_token, mp_refresh_token, mp_token_expires_at, mp_connected_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 	slog.Debug("StorePostgresRepository.Save executing",
 		slog.String("query", query),
@@ -28,11 +29,16 @@ func (r *StorePostgresRepository) Save(ctx context.Context, store *domain.Store)
 	)
 
 	_, err := r.db.ExecContext(ctx, query,
-		string(store.ID()),
+		store.ID(),
 		store.Name(),
 		store.Description(),
 		store.Address(),
 		store.PhoneNumber(),
+		store.MPUserID(),
+		store.MPAccessToken(),
+		store.MPRefreshToken(),
+		store.MPTokenExpiresAt(),
+		store.MPConnectedAt(),
 	)
 	if err != nil {
 		slog.Error("StorePostgresRepository.Save failed",
@@ -48,7 +54,7 @@ func (r *StorePostgresRepository) Save(ctx context.Context, store *domain.Store)
 
 func (r *StorePostgresRepository) FindByID(ctx context.Context, id string) (*domain.Store, error) {
 	query := `
-		SELECT id, name, description, address, phone_number
+		SELECT id, name, description, address, phone_number, mp_user_id, mp_access_token, mp_refresh_token, mp_token_expires_at, mp_connected_at
 		FROM stores
 		WHERE id = $1
 	`
@@ -72,7 +78,7 @@ func (r *StorePostgresRepository) FindByID(ctx context.Context, id string) (*dom
 
 func (r *StorePostgresRepository) FindAll(ctx context.Context, limit, offset int) ([]*domain.Store, error) {
 	query := `
-		SELECT id, name, description, address, phone_number
+		SELECT id, name, description, address, phone_number, mp_user_id, mp_access_token, mp_refresh_token, mp_token_expires_at, mp_connected_at
 		FROM stores
 		ORDER BY name
 		LIMIT $1 OFFSET $2
@@ -125,7 +131,9 @@ func (r *StorePostgresRepository) FindAll(ctx context.Context, limit, offset int
 func (r *StorePostgresRepository) Update(ctx context.Context, store *domain.Store) error {
 	query := `
 		UPDATE stores
-		SET name = $2, description = $3, address = $4, phone_number = $5
+		SET name = $2, description = $3, address = $4, phone_number = $5,
+		    mp_user_id = $6, mp_access_token = $7, mp_refresh_token = $8,
+		    mp_token_expires_at = $9, mp_connected_at = $10
 		WHERE id = $1
 	`
 	slog.Debug("StorePostgresRepository.Update executing",
@@ -135,11 +143,16 @@ func (r *StorePostgresRepository) Update(ctx context.Context, store *domain.Stor
 	)
 
 	result, err := r.db.ExecContext(ctx, query,
-		string(store.ID()),
+		store.ID(),
 		store.Name(),
 		store.Description(),
 		store.Address(),
 		store.PhoneNumber(),
+		store.MPUserID(),
+		store.MPAccessToken(),
+		store.MPRefreshToken(),
+		store.MPTokenExpiresAt(),
+		store.MPConnectedAt(),
 	)
 	if err != nil {
 		slog.Error("StorePostgresRepository.Update failed",
@@ -204,19 +217,116 @@ func (r *StorePostgresRepository) Delete(ctx context.Context, id string) error {
 
 func (r *StorePostgresRepository) scanStore(row *sql.Row) (*domain.Store, error) {
 	var id, name, description, address, phoneNumber string
-	if err := row.Scan(&id, &name, &description, &address, &phoneNumber); err != nil {
+	var mpUserID, mpAccessToken, mpRefreshToken sql.NullString
+	var mpTokenExpiresAt, mpConnectedAt sql.NullTime
+
+	if err := row.Scan(&id, &name, &description, &address, &phoneNumber,
+		&mpUserID, &mpAccessToken, &mpRefreshToken, &mpTokenExpiresAt, &mpConnectedAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, domain.ErrStoreNotFound
 		}
 		return nil, err
 	}
-	return domain.NewStore(string(id), name, description, address, phoneNumber)
+
+	return r.buildStore(id, name, description, address, phoneNumber,
+		mpUserID, mpAccessToken, mpRefreshToken, mpTokenExpiresAt, mpConnectedAt)
 }
 
 func (r *StorePostgresRepository) scanStoreFromRows(rows *sql.Rows) (*domain.Store, error) {
 	var id, name, description, address, phoneNumber string
-	if err := rows.Scan(&id, &name, &description, &address, &phoneNumber); err != nil {
+	var mpUserID, mpAccessToken, mpRefreshToken sql.NullString
+	var mpTokenExpiresAt, mpConnectedAt sql.NullTime
+
+	if err := rows.Scan(&id, &name, &description, &address, &phoneNumber,
+		&mpUserID, &mpAccessToken, &mpRefreshToken, &mpTokenExpiresAt, &mpConnectedAt); err != nil {
 		return nil, err
 	}
-	return domain.NewStore(string(id), name, description, address, phoneNumber)
+
+	return r.buildStore(id, name, description, address, phoneNumber,
+		mpUserID, mpAccessToken, mpRefreshToken, mpTokenExpiresAt, mpConnectedAt)
+}
+
+func (r *StorePostgresRepository) buildStore(
+	id, name, description, address, phoneNumber string,
+	mpUserID, mpAccessToken, mpRefreshToken sql.NullString,
+	mpTokenExpiresAt, mpConnectedAt sql.NullTime,
+) (*domain.Store, error) {
+	input := domain.CreateStoreInput{
+		Name:        name,
+		Description: description,
+		Address:     address,
+		PhoneNumber: phoneNumber,
+	}
+	store, err := domain.NewStore(id, input)
+	if err != nil {
+		return nil, err
+	}
+
+	// Restore MP fields using reflection or package-private setters
+	// Since we need to hydrate from DB, we'll use the HydrateStore function
+	return domain.HydrateStore(store, domain.MPFields{
+		MPUserID:         mpUserID.String,
+		MPAccessToken:    mpAccessToken.String,
+		MPRefreshToken:   mpRefreshToken.String,
+		MPTokenExpiresAt: nullTimeToPtr(mpTokenExpiresAt),
+		MPConnectedAt:    nullTimeToPtr(mpConnectedAt),
+	}), nil
+}
+
+func nullTimeToPtr(nt sql.NullTime) *time.Time {
+	if nt.Valid {
+		return &nt.Time
+	}
+	return nil
+}
+
+func (r *StorePostgresRepository) UpdateMPConnection(ctx context.Context, storeID string, fields domain.MPFields) error {
+	query := `
+		UPDATE stores
+		SET mp_user_id = $2,
+		    mp_access_token = $3,
+		    mp_refresh_token = $4,
+		    mp_token_expires_at = $5,
+		    mp_connected_at = $6
+		WHERE id = $1
+	`
+	slog.Debug("StorePostgresRepository.UpdateMPConnection executing",
+		slog.String("store_id", storeID),
+		slog.String("mp_user_id", fields.MPUserID),
+	)
+
+	result, err := r.db.ExecContext(ctx, query,
+		storeID,
+		fields.MPUserID,
+		fields.MPAccessToken,
+		fields.MPRefreshToken,
+		fields.MPTokenExpiresAt,
+		fields.MPConnectedAt,
+	)
+	if err != nil {
+		slog.Error("StorePostgresRepository.UpdateMPConnection failed",
+			slog.String("store_id", storeID),
+			slog.Any("error", err),
+		)
+		return err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		slog.Error("StorePostgresRepository.UpdateMPConnection failed to get rows affected",
+			slog.String("store_id", storeID),
+			slog.Any("error", err),
+		)
+		return err
+	}
+
+	slog.Debug("StorePostgresRepository.UpdateMPConnection rows affected",
+		slog.String("store_id", storeID),
+		slog.Int64("rows", rows),
+	)
+
+	if rows == 0 {
+		return domain.ErrStoreNotFound
+	}
+	return nil
 }

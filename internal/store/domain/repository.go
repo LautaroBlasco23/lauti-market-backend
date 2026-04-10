@@ -8,4 +8,5 @@ type Repository interface {
 	FindAll(ctx context.Context, limit, offset int) ([]*Store, error)
 	Update(ctx context.Context, store *Store) error
 	Delete(ctx context.Context, id string) error
+	UpdateMPConnection(ctx context.Context, storeID string, fields MPFields) error
 }
