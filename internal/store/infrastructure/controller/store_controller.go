@@ -3,8 +3,10 @@ package controller
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
 	"github.com/LautaroBlasco23/lauti-market-backend/internal/api/infrastructure"
@@ -567,6 +569,76 @@ func handleOAuthError(w http.ResponseWriter, err error) {
 		slog.Any("error", err),
 	)
 	http.Error(w, err.Error(), http.StatusBadRequest)
+}
+
+// HandlePublicOAuthCallback handles the MercadoPago OAuth redirect callback
+// This endpoint is PUBLIC (no auth required) - MercadoPago redirects here directly
+func (h *StoreController) HandlePublicOAuthCallback(w http.ResponseWriter, r *http.Request) {
+	requestID := infrastructure.GetRequestID(r)
+	slog.Debug("StoreController.HandlePublicOAuthCallback started",
+		slog.String("request_id", requestID),
+	)
+
+	// Get query parameters from MercadoPago redirect
+	code := r.URL.Query().Get("code")
+	state := r.URL.Query().Get("state")
+	errorMsg := r.URL.Query().Get("error")
+	errorDesc := r.URL.Query().Get("error_description")
+
+	// Handle error from MercadoPago
+	if errorMsg != "" {
+		slog.Warn("StoreController.HandlePublicOAuthCallback received error from MercadoPago",
+			slog.String("request_id", requestID),
+			slog.String("error", errorMsg),
+			slog.String("error_description", errorDesc),
+		)
+		redirectURL := fmt.Sprintf("/seller?mp_error=%s&mp_error_description=%s",
+			url.QueryEscape(errorMsg),
+			url.QueryEscape(errorDesc))
+		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	// Validate required parameters
+	if code == "" {
+		slog.Warn("StoreController.HandlePublicOAuthCallback missing code parameter",
+			slog.String("request_id", requestID),
+		)
+		http.Redirect(w, r, "/seller?mp_error=missing_code", http.StatusTemporaryRedirect)
+		return
+	}
+
+	if state == "" {
+		slog.Warn("StoreController.HandlePublicOAuthCallback missing state parameter",
+			slog.String("request_id", requestID),
+		)
+		http.Redirect(w, r, "/seller?mp_error=missing_state", http.StatusTemporaryRedirect)
+		return
+	}
+
+	slog.Debug("StoreController.HandlePublicOAuthCallback calling service",
+		slog.String("request_id", requestID),
+		slog.String("store_id", state),
+	)
+
+	// Exchange code for tokens and save connection
+	if err := h.service.HandleOAuthCallback(r.Context(), state, code); err != nil {
+		slog.Error("StoreController.HandlePublicOAuthCallback service error",
+			slog.String("request_id", requestID),
+			slog.String("store_id", state),
+			slog.Any("error", err),
+		)
+		http.Redirect(w, r, "/seller?mp_error=connection_failed", http.StatusTemporaryRedirect)
+		return
+	}
+
+	slog.Info("StoreController.HandlePublicOAuthCallback completed successfully",
+		slog.String("request_id", requestID),
+		slog.String("store_id", state),
+	)
+
+	// Redirect to seller dashboard with success message
+	http.Redirect(w, r, "/seller?mp_connected=true", http.StatusTemporaryRedirect)
 }
 
 func (h *StoreController) handleError(w http.ResponseWriter, err error) {

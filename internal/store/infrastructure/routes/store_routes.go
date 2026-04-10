@@ -18,4 +18,7 @@ func RegisterRoutes(mux *http.ServeMux, controller *storeController.StoreControl
 	mux.Handle("POST /stores/{id}/mercadopago/callback", authMw.Wrap(http.HandlerFunc(controller.HandleOAuthCallback)))
 	mux.Handle("GET /stores/{id}/mercadopago/status", authMw.Wrap(http.HandlerFunc(controller.GetMPConnectionStatus)))
 	mux.Handle("DELETE /stores/{id}/mercadopago/disconnect", authMw.Wrap(http.HandlerFunc(controller.DisconnectMP)))
+
+	// Public MercadoPago OAuth callback (MercadoPago redirects here directly)
+	mux.HandleFunc("GET /mercadopago/oauth/callback", controller.HandlePublicOAuthCallback)
 }
