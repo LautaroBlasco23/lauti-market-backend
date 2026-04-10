@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"log/slog"
+	"strconv"
 	"time"
 
 	apiDomain "github.com/LautaroBlasco23/lauti-market-backend/internal/api/domain"
@@ -241,7 +242,7 @@ func (s *StoreService) HandleOAuthCallback(ctx context.Context, storeID string, 
 
 	expiresAt := tokenResp.CalculateExpiryTime()
 	fields := domain.MPFields{
-		MPUserID:         tokenResp.MPUserID,
+		MPUserID:         strconv.Itoa(tokenResp.UserID),
 		MPAccessToken:    tokenResp.AccessToken,
 		MPRefreshToken:   tokenResp.RefreshToken,
 		MPTokenExpiresAt: &expiresAt,
@@ -259,7 +260,7 @@ func (s *StoreService) HandleOAuthCallback(ctx context.Context, storeID string, 
 
 	slog.Info("StoreService.HandleOAuthCallback completed",
 		slog.String("store_id", store.ID()),
-		slog.String("mp_user_id", tokenResp.MPUserID),
+		slog.String("mp_user_id", strconv.Itoa(tokenResp.UserID)),
 	)
 	return nil
 }
@@ -308,7 +309,7 @@ func (s *StoreService) RefreshAccessToken(ctx context.Context, storeID string) e
 
 	expiresAt := tokenResp.CalculateExpiryTime()
 	fields := domain.MPFields{
-		MPUserID:         tokenResp.MPUserID,
+		MPUserID:         strconv.Itoa(tokenResp.UserID),
 		MPAccessToken:    tokenResp.AccessToken,
 		MPRefreshToken:   tokenResp.RefreshToken,
 		MPTokenExpiresAt: &expiresAt,

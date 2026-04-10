@@ -26,8 +26,7 @@ type TokenResponse struct {
 	TokenType    string `json:"token_type"`
 	ExpiresIn    int    `json:"expires_in"`
 	Scope        string `json:"scope"`
-	UserID       int    `json:"user_id"`
-	MPUserID     string `json:"mp_user_id"`
+	UserID int `json:"user_id"`
 }
 
 // NewOAuthClient creates a new MP OAuth client
