@@ -45,8 +45,8 @@ Clean Architecture with these layers per module (dependency direction: infrastru
 
 ```
 internal/
-├── api/                    # Shared infrastructure (errors, CORS, UUID, validator)
-└── {module}/               # auth, user, store, product, order, image
+├── api/                    # Shared infrastructure (errors, CORS, UUID, validator, logging)
+└── {module}/               # auth, user, store, product, order, image, payment
     ├── domain/             # Entities with validation + repository interfaces
     ├── application/        # Use cases / service layer
     └── infrastructure/
@@ -62,8 +62,9 @@ internal/
 - `image` — gRPC client adapter (no HTTP routes), consumed by `product` module
 - `order` — `Wire` takes additional args: `productRepo` and `authMw` (JWT middleware)
 - `user`, `store`, `product` — `Wire` also takes `authMw` for protecting mutation routes
+- `payment` — MercadoPago Checkout Pro integration with cart-based checkout and marketplace support
 
-**Entry point:** `cmd/api/main.go` — initializes DB, sets up CORS middleware, then wires modules in order: User → Store → Auth → Image → Product → Order.
+**Entry point:** `cmd/api/main.go` — loads .env via godotenv, initializes DB, sets up CORS middleware and colored request logging, then wires modules in order: User → Store → Auth → Image → Product → Order → Payment.
 
 **Adding a new module:** create `domain/` (entity + repository interface), `application/service.go` (use cases), `infrastructure/` (controller, dto, repository, routes, wiring.go), then call `Wire()` from `main.go`.
 
@@ -75,9 +76,9 @@ internal/
 
 **Dependency injection:** Each module's `wiring.go` instantiates all layers and registers routes. Interfaces are used at every boundary (repository, ID generator, password hasher, token generator).
 
-**Database:** Raw SQL with `database/sql` + `lib/pq`. No ORM. Migrations live in `migrations/`. Schema: `users`, `stores`, `auths` (account_type CHECK: "user"|"store"), `products` (with category column), `orders`, `order_items`.
+**Database:** Raw SQL with `database/sql` + `lib/pq`. No ORM. Migrations live in `migrations/`. Schema: `users`, `stores` (with MercadoPago OAuth fields), `auths` (account_type CHECK: "user"|"store"), `products` (with category column), `orders`, `order_items`, `payments`.
 
-**Auth:** JWT-based. `AuthService` depends on both `UserService` and `StoreService` to create the underlying account before creating the auth record.
+**Auth:** JWT-based. `AuthService` depends on both `UserService` and `StoreService` to create the underlying account before creating the auth record. Registration returns a JWT token for immediate authentication. Includes `/auth/me` endpoint for token validation.
 
 **Authentication & ownership enforcement:** `authMw` (JWT middleware) is wired into user, store, and product modules. Pattern:
 - Middleware validates JWT and injects account ID into request context
@@ -104,7 +105,19 @@ DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_SSLMODE
 JWT_SECRET
 IMAGE_STORE_ADDR      (gRPC address for image service, default: localhost:50051)
 PORT
-UNSPLASH_ACCESS_KEY   (optional; used by fake-data-creator.sh)
+UNSPLASH_ACCESS_KEY   (optional; used by inject-data seed script)
+LOG_LEVEL             (debug|info, default: info)
+
+# MercadoPago Checkout Pro
+MERCADO_PAGO_ACCESS_TOKEN
+MERCADO_PAGO_WEBHOOK_SECRET
+FRONTEND_BASE_URL
+MERCADO_PAGO_NOTIFICATION_URL
+
+# MercadoPago OAuth (MP Connect for sellers)
+MP_CLIENT_ID
+MP_CLIENT_SECRET
+MP_REDIRECT_URI
 ```
 
 ## Preflight

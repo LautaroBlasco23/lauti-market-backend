@@ -7,7 +7,7 @@ Backend API for my marketplace personal project.
 ```
 internal/
 ├── api/                    # Shared infrastructure
-└── {entity}/
+└── {module}/               # auth, user, store, product, order, image, payment
     ├── domain/             # Business rules, entities, repository interfaces
     ├── application/        # Use cases
     └── infrastructure/     # HTTP handlers, repositories, wiring
@@ -17,31 +17,50 @@ internal/
 
 Each module exposes a `Wire()` function in `infrastructure/wiring.go` that initializes all components and registers routes.
 
+**Module initialization order:** User → Store → Auth → Image → Product → Order → Payment
+
 ## Dependencies
 
 - [golang-jwt/jwt](https://github.com/golang-jwt/jwt) - JWT tokens
 - [google/uuid](https://github.com/google/uuid) - ID generation
 - [x/crypto](https://pkg.go.dev/golang.org/x/crypto) - bcrypt password hashing
+- [go-playground/validator](https://github.com/go-playground/validator) - Struct validation
+- [godotenv](https://github.com/joho/godotenv) - Load .env files
+- [mercadopago/sdk-go](https://github.com/mercadopago/sdk-go) - MercadoPago Checkout Pro integration
 - [testify](https://github.com/stretchr/testify) - Test assertions and mocking
 - [testcontainers-go](https://github.com/testcontainers/testcontainers-go) - PostgreSQL containers for integration tests
 
 ## Run
 
+1. Copy the environment file:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+2. Start the server:
+   ```bash
+   go mod tidy
+   make db-up
+   make dev
+   ```
+
+   or
+
+   ```bash
+   make install-tools
+   make db-up
+   make dev
+   ```
+
+Server starts on `:8080` (Docker) or `PORT` env variable (default `:8000` in dev).
+
+### Seed data
+
 ```bash
-go mod tidy
-make db-up
-make dev
+# Populate the database with fake stores and products
+make inject-data
 ```
-
-or
-
-```bash
-make install-tools
-make db-up
-make dev
-```
-
-Server starts on `:8080`.
 
 ## Testing
 
