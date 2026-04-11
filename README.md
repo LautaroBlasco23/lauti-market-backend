@@ -60,3 +60,39 @@ make test-security
 ```
 
 Integration and E2E tests use the `//go:build integration` tag and spin up a real PostgreSQL 16-alpine container via testcontainers-go. Migrations are applied automatically.
+
+## ngrok
+
+Expose your local backend to the internet with [ngrok](https://ngrok.com/).
+
+### Quick start
+
+1. Install ngrok:
+   ```bash
+   curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null && echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list && sudo apt update && sudo apt install ngrok
+   ```
+   Or download from https://ngrok.com/download
+
+2. Add your authtoken (once):
+   ```bash
+   ngrok config add-authtoken <YOUR_TOKEN>
+   ```
+   Get your token from https://dashboard.ngrok.com/get-started/your-authtoken
+
+3. Start your backend and expose it:
+   ```bash
+   # Terminal 1: start the server
+   make dev
+
+   # Terminal 2: expose port 8080
+   ngrok http 8080
+   ```
+
+4. Copy the `Forwarding` URL (e.g., `https://abc123.ngrok-free.app`)
+
+### ngrok with Docker
+
+If running the backend via `make docker-up`:
+```bash
+ngrok http 8080
+```
