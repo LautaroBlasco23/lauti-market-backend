@@ -1,5 +1,7 @@
 # Lauti Market Backend
 
+> **⚠️ Project status:** This is a learning project built to practice Go, clean architecture, and API design. It is not maintained, will not receive new features, and is not intended for production use. The code is here for reference and learning purposes.
+
 Backend API for my marketplace personal project.
 
 ## Architecture
